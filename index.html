@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>お釣りピッタリ</title>
+  <meta name="description" content="レジの値段と財布の中身から、支払い後の硬貨が一番少なくなる出し方を考えるゲーム。円とドルの2バージョン、全20チャレンジ。">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1 class="logo">お釣り<span>ピッタリ</span></h1>
+    <button class="sound-btn" id="btnSound" type="button" aria-label="効果音のオン/オフ">🔊</button>
+    <div class="hud" id="hud" hidden>
+      <div><small>チャレンジ</small><b id="hudRound">1/20</b></div>
+      <div><small>減らした硬貨</small><b id="hudScore">0</b></div>
+      <div><small>パーフェクト</small><b id="hudPerfect">0</b></div>
+    </div>
+  </header>
+
+  <main>
+    <!-- スタート画面 -->
+    <section id="screenStart" class="screen">
+      <div class="card intro">
+        <p class="lead">財布の小銭、パンパンになっていませんか？<br>
+          レジでうまく出して、<strong>お釣りを受け取った後の硬貨の枚数</strong>をできるだけ少なくしよう！</p>
+        <ol class="rules">
+          <li>毎回、レジの値段と財布の中身が出題されます（全20チャレンジ）。</li>
+          <li>財布のお金をタップしてトレーに出し、「支払う」を押します。</li>
+          <li>ピッタリ払えないことの方が多いです。<br>例：<b>615円</b>のお会計に<b>1,115円</b>出せば、お釣りは<b>500円玉1枚</b>だけ！</li>
+          <li>支払い前より減らした硬貨の枚数がスコア。最少枚数にできたらパーフェクト！</li>
+        </ol>
+        <div class="choose">
+          <button class="btn big jpy" data-cur="JPY">円でプレイ<small>1円〜500円玉・お札</small></button>
+          <button class="btn big usd" data-cur="USD">ドルでプレイ<small>1¢〜25¢・$1〜$20 札</small></button>
+        </div>
+        <details class="seedbox">
+          <summary>チャレンジコードで遊ぶ（友だちと同じ問題で勝負）</summary>
+          <label>コード <input id="seedInput" maxlength="16" placeholder="空欄ならランダム" autocomplete="off"></label>
+        </details>
+        <div id="records" class="records"></div>
+      </div>
+    </section>
+
+    <!-- ゲーム画面 -->
+    <section id="screenGame" class="screen" hidden>
+      <div class="register card">
+        <div class="register-label">お会計</div>
+        <div class="price" id="price">0円</div>
+      </div>
+
+      <div class="card tray-card">
+        <div class="row-head">
+          <h2>トレー（出すお金）</h2>
+          <div class="tray-sum">合計 <b id="traySum">0円</b></div>
+        </div>
+        <div class="tray" id="tray"><p class="placeholder">財布のお金をタップして出そう</p></div>
+        <div class="status" id="status"></div>
+        <div class="actions">
+          <button class="btn ghost" id="btnClear">戻す</button>
+          <button class="btn primary" id="btnPay" disabled>支払う</button>
+        </div>
+      </div>
+
+      <div class="card wallet-card">
+        <div class="row-head">
+          <h2>財布</h2>
+          <div class="wallet-info">硬貨 <b id="walletCoins">0</b>枚 ／ <span id="walletSum">0円</span></div>
+        </div>
+        <div class="wallet" id="wallet"></div>
+      </div>
+    </section>
+
+    <!-- ゲーム終了 -->
+    <section id="screenEnd" class="screen" hidden>
+      <div class="card end">
+        <h2>結果発表</h2>
+        <div class="final-score"><span id="endScore">0</span><small>枚 減らした</small></div>
+        <p class="end-sub" id="endSub"></p>
+        <div class="rank" id="endRank"></div>
+        <p class="end-code">チャレンジコード <b id="endCode"></b>（<span id="endCur"></span>）</p>
+        <div class="actions wrap">
+          <button class="btn ghost" id="btnShare">結果をコピー</button>
+          <button class="btn ghost" id="btnRetry">同じ問題で再挑戦</button>
+          <button class="btn primary" id="btnHome">トップへ</button>
+        </div>
+        <table class="history" id="history"></table>
+      </div>
+    </section>
+  </main>
+
+  <!-- ラウンド結果 -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-box">
+      <div class="reduced" id="mReduced"></div>
+      <div class="verdict" id="verdict"></div>
+      <div class="m-row"><span>支払い</span><b id="mPaid"></b></div>
+      <div class="m-row"><span>お釣り</span><b id="mChange"></b></div>
+      <div class="money-line" id="mChangeItems"></div>
+      <div class="coins-compare">
+        <div><small>支払い前</small><b id="mBefore"></b></div>
+        <div class="arrow">→</div>
+        <div><small>あなた</small><b id="mAfter"></b></div>
+        <div><small>最少</small><b id="mBest"></b></div>
+      </div>
+      <div class="best-way" id="mBestWay"></div>
+      <button class="btn primary wide next-btn" id="btnNext"><span class="bar" id="nextBar"></span><span class="label" id="nextLabel">次の会計へ ▶</span></button>
+      <p class="auto-note" id="autoNote">自動で次の会計に進みます（タップで一時停止）</p>
+    </div>
+  </div>
+
+  <footer class="foot">© お釣りピッタリ</footer>
+  <script src="js/core.js"></script>
+  <script src="js/coins.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
