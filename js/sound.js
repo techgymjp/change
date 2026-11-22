@@ -176,11 +176,97 @@
     clink(700, 0.25, 0.4, delay || 0);
   }
 
+  // 小銭入れから硬貨をつまみ上げる（周りの硬貨とこすれる音）
+  function pickup(code, v) {
+    if (muted || !ac()) return;
+    money(code, v, 0, true);
+    scrape(0.01, 0.12, 0.18);
+  }
+  // 小銭入れの山に置く（ほかの硬貨に当たって 2 回鳴る）
+  function drop(code, v) {
+    money(code, v, 0);
+    money(code, v, 0.06 + Math.random() * 0.04, true);
+  }
+  // 金属どうしがこすれる「シャリッ」
+  function scrape(t, dur, vol) {
+    if (muted || !ac()) return;
+    const now = ctx.currentTime + (t || 0);
+    const n = noise();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 5200;
+    bp.Q.value = 2.5;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(vol, now + dur * 0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    n.connect(bp);
+    bp.connect(g);
+    g.connect(master);
+    n.start(now, Math.random() * 0.2);
+    n.stop(now + dur + 0.02);
+  }
+  // 硬貨投入口へ: チャリン → 機械の中を転がって選別される「カラカラ」
+  function insert(code, v) {
+    if (muted || !ac()) return;
+    money(code, v, 0);
+    for (let i = 0; i < 5; i++) {
+      const t = 0.12 + i * (0.05 + i * 0.012);
+      const tone = TONE[code] && TONE[code][v];
+      clink((tone ? tone[0] : 2500) * (0.7 + Math.random() * 0.15), 0.07, 0.18 * (1 - i * 0.15), t);
+    }
+    // 選別機のモーター
+    const now = ctx.currentTime + 0.1;
+    const o = ctx.createOscillator();
+    const lp = ctx.createBiquadFilter();
+    const g = ctx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.value = 95;
+    lp.type = 'lowpass';
+    lp.frequency.value = 420;
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(0.06, now + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+    o.connect(lp);
+    lp.connect(g);
+    g.connect(master);
+    o.start(now);
+    o.stop(now + 0.5);
+  }
+  // 返却口から戻ってくる
+  function returnCoins() {
+    if (muted || !ac()) return;
+    scrape(0, 0.25, 0.12);
+  }
+  // 小銭入れを振る: ジャラジャラ
+  function shake(code, values) {
+    if (muted || !ac()) return;
+    const n = Math.min(24, values.length * 2);
+    for (let i = 0; i < n; i++) money(code, values[i % values.length], Math.random() * 0.45, Math.random() < 0.6);
+    scrape(0, 0.45, 0.16);
+  }
+  function reject() {
+    if (muted || !ac()) return;
+    const now = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'square';
+    o.frequency.value = 330;
+    g.gain.setValueAtTime(0.06, now);
+    g.gain.setValueAtTime(0.0001, now + 0.12);
+    g.gain.setValueAtTime(0.06, now + 0.17);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+    o.connect(g);
+    g.connect(master);
+    o.start(now);
+    o.stop(now + 0.32);
+  }
+
   function setMuted(m) {
     muted = m;
     try { localStorage.setItem('otsuri-muted', m ? '1' : '0'); } catch (e) { /* ignore */ }
     if (!m) { ac(); clink(2650, 0.5, 0.5, 0); }
   }
 
-  window.OtsuriSound = { money, register, changeShower, fanfare, thud, setMuted, isMuted: () => muted, unlock: ac };
+  window.OtsuriSound = { context: ac, money, pickup, drop, insert, returnCoins, shake, reject, register, changeShower, fanfare, thud, setMuted, isMuted: () => muted, unlock: ac };
 })();

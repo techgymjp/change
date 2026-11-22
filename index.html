@@ -10,65 +10,125 @@
 <body>
   <header class="top">
     <h1 class="logo">お釣り<span>ピッタリ</span></h1>
-    <button class="sound-btn" id="btnSound" type="button" aria-label="効果音のオン/オフ">🔊</button>
+    <div class="toggles">
+      <button class="sound-btn" id="btnBgm" type="button" aria-label="BGMのオン/オフ" title="BGM">♪</button>
+      <button class="sound-btn" id="btnSound" type="button" aria-label="効果音のオン/オフ" title="効果音">🔊</button>
+    </div>
     <div class="hud" id="hud" hidden>
-      <div><small>チャレンジ</small><b id="hudRound">1/20</b></div>
-      <div><small>減らした硬貨</small><b id="hudScore">0</b></div>
-      <div><small>パーフェクト</small><b id="hudPerfect">0</b></div>
+      <div><small>問題</small><b id="hudRound">1/20</b></div>
+      <div><small>減らした</small><b id="hudScore">0</b></div>
+      <div><small>★</small><b id="hudPerfect">0</b></div>
     </div>
   </header>
 
   <main>
     <!-- スタート画面 -->
-    <section id="screenStart" class="screen">
-      <div class="card intro">
-        <p class="lead">財布の小銭、パンパンになっていませんか？<br>
-          レジでうまく出して、<strong>お釣りを受け取った後の硬貨の枚数</strong>をできるだけ少なくしよう！</p>
-        <ol class="rules">
-          <li>毎回、レジの値段と財布の中身が出題されます（全20チャレンジ）。</li>
-          <li>財布のお金をタップしてトレーに出し、「支払う」を押します。</li>
-          <li>ピッタリ払えないことの方が多いです。<br>例：<b>615円</b>のお会計に<b>1,115円</b>出せば、お釣りは<b>500円玉1枚</b>だけ！</li>
-          <li>支払い前より減らした硬貨の枚数がスコア。最少枚数にできたらパーフェクト！</li>
-        </ol>
-        <div class="choose">
-          <button class="btn big jpy" data-cur="JPY">円でプレイ<small>1円〜500円玉・お札</small></button>
-          <button class="btn big usd" data-cur="USD">ドルでプレイ<small>1¢〜25¢・$1〜$20 札</small></button>
+    <section id="screenStart" class="screen start">
+      <div class="hero">
+        <p class="tagline">財布の小銭、<b>減らせる？</b></p>
+        <div class="scene" aria-hidden="true">
+          <div class="scene-purse">
+            <div class="zipper"><i class="pull"></i></div>
+            <div class="scene-pile" id="heroPile"></div>
+          </div>
+          <svg class="scene-arrow" viewBox="0 0 120 80"><path d="M8 66 C30 10 80 6 110 30" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="8 7" stroke-linecap="round"/><path d="M98 18 L113 32 L94 38" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="scene-machine">
+            <div class="lcd mini"><span>お会計</span><b>65円</b></div>
+            <div class="funnel mini"><div class="slit"></div></div>
+          </div>
+          <div class="burst">−3<small>枚</small></div>
         </div>
+      </div>
+      <div class="choose">
+        <button class="btn big jpy" data-cur="JPY"><img data-coin="JPY-500" alt="">円で遊ぶ</button>
+        <button class="btn big usd" data-cur="USD"><img data-coin="USD-25" alt="">ドルで遊ぶ</button>
+      </div>
+      <div class="start-links">
+        <button class="btn ghost" id="btnHowto" type="button">遊び方</button>
         <details class="seedbox">
-          <summary>チャレンジコードで遊ぶ（友だちと同じ問題で勝負）</summary>
-          <label>コード <input id="seedInput" maxlength="16" placeholder="空欄ならランダム" autocomplete="off"></label>
+          <summary>チャレンジコード</summary>
+          <input id="seedInput" maxlength="16" placeholder="空欄ならランダム" autocomplete="off" aria-label="チャレンジコード">
         </details>
-        <div id="records" class="records"></div>
+      </div>
+      <div id="records" class="records"></div>
+    </section>
+
+    <!-- 遊び方 -->
+    <section id="screenHowto" class="screen howto" hidden>
+      <h2 class="howto-title">遊び方</h2>
+      <ol class="steps">
+        <li class="step">
+          <div class="step-art"><div class="lcd mini"><span>お会計</span><b>65円</b></div></div>
+          <div><b>1. お会計を確認</b><p>毎回、値段と小銭入れの中身が変わります。全20問。</p></div>
+        </li>
+        <li class="step">
+          <div class="step-art pile-art" id="howPile"></div>
+          <div><b>2. 小銭入れから探す</b><p>硬貨は重なっています。下に埋もれた硬貨は、上の硬貨をどかして探り当てよう。</p></div>
+        </li>
+        <li class="step">
+          <div class="step-art"><div class="funnel mini"><div class="slit"></div></div></div>
+          <div><b>3. 投入口へドラッグ</b><p>つかんだ硬貨を自動釣銭機の投入口まで運び、そろったら「精算」。</p></div>
+        </li>
+        <li class="step">
+          <div class="step-art example">
+            <span class="ex-row"><img data-coin="JPY-100" alt=""><img data-coin="JPY-10" alt=""><img data-coin="JPY-5" alt=""></span>
+            <span class="ex-arrow">→</span>
+            <span class="ex-row"><img data-coin="JPY-50" alt=""></span>
+          </div>
+          <div><b>4. お釣りで小銭を減らす</b><p>65円に115円出すと、お釣りは50円玉1枚。ピッタリ払えないときこそ工夫しよう。</p></div>
+        </li>
+      </ol>
+      <p class="howto-score">支払い前より<b>減らした硬貨の枚数</b>がスコア。これ以上減らせない枚数にできたら<b>パーフェクト</b>！</p>
+      <div class="actions wrap">
+        <button class="btn ghost" id="btnHowtoBack" type="button">もどる</button>
+        <button class="btn big jpy" data-cur="JPY"><img data-coin="JPY-500" alt="">円で遊ぶ</button>
+        <button class="btn big usd" data-cur="USD"><img data-coin="USD-25" alt="">ドルで遊ぶ</button>
       </div>
     </section>
 
     <!-- ゲーム画面 -->
-    <section id="screenGame" class="screen" hidden>
-      <div class="register card">
-        <div class="register-label">お会計</div>
-        <div class="price" id="price">0円</div>
+    <section id="screenGame" class="screen game-grid" hidden>
+      <!-- 自動釣銭機 -->
+      <div class="machine" id="machine">
+        <div class="machine-head"><span class="brand">AUTO CASHIER</span><span class="machine-name">自動釣銭機</span><span class="lamp"></span></div>
+        <div class="lcd">
+          <div class="lcd-row"><span>お会計</span><b id="price">0円</b></div>
+          <div class="lcd-row"><span>投入金額</span><b id="paidSum">0円</b></div>
+          <div class="lcd-row msg" id="status">お金を入れてください</div>
+        </div>
+        <div class="slots" id="slots">
+          <div class="slot coin-slot" id="coinSlot">
+            <div class="funnel"><div class="slit"></div></div>
+            <span class="slot-label">硬貨投入口</span>
+          </div>
+        </div>
+        <div class="inserted-wrap">
+          <div class="inserted" id="inserted"></div>
+          <small class="inserted-note">投入したお金（タップで1枚返却）</small>
+        </div>
+        <div class="machine-btns">
+          <button class="mbtn return" id="btnReturn" type="button">返却</button>
+          <button class="mbtn pay" id="btnPay" type="button" disabled>精算</button>
+        </div>
       </div>
 
-      <div class="card tray-card">
+      <!-- 財布 -->
+      <div class="card purse-card">
         <div class="row-head">
-          <h2>トレー（出すお金）</h2>
-          <div class="tray-sum">合計 <b id="traySum">0円</b></div>
-        </div>
-        <div class="tray" id="tray"><p class="placeholder">財布のお金をタップして出そう</p></div>
-        <div class="status" id="status"></div>
-        <div class="actions">
-          <button class="btn ghost" id="btnClear">戻す</button>
-          <button class="btn primary" id="btnPay" disabled>支払う</button>
-        </div>
-      </div>
-
-      <div class="card wallet-card">
-        <div class="row-head">
-          <h2>財布</h2>
+          <h2>小銭入れ</h2>
           <div class="wallet-info">硬貨 <b id="walletCoins">0</b>枚 ／ <span id="walletSum">0円</span></div>
         </div>
-        <div class="wallet" id="wallet"></div>
+        <div class="purse" id="purseOuter">
+          <div class="zipper"><i class="pull"></i></div>
+          <div class="purse-inner" id="purse"></div>
+        </div>
+        <div class="purse-foot">
+          <span class="hint">硬貨をつかんで投入口へ運ぼう。下に埋もれた硬貨は、上の硬貨をどかして探そう。</span>
+          <button class="btn ghost small" id="btnShake" type="button">振る</button>
+        </div>
+        <div class="memo" id="memo"></div>
       </div>
+      <div class="toast" id="toast" hidden></div>
     </section>
 
     <!-- ゲーム終了 -->
@@ -113,6 +173,7 @@
   <script src="js/core.js"></script>
   <script src="js/coins.js"></script>
   <script src="js/sound.js"></script>
+  <script src="js/bgm.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

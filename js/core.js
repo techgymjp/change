@@ -21,18 +21,16 @@
         { v: 50, coin: true, label: '50', name: '50円玉', hole: true },
         { v: 100, coin: true, label: '100', name: '100円玉' },
         { v: 500, coin: true, label: '500', name: '500円玉' },
-        { v: 1000, coin: false, label: '1000', name: '千円札' },
-        { v: 5000, coin: false, label: '5000', name: '五千円札' },
-        { v: 10000, coin: false, label: '10000', name: '一万円札' },
       ],
       format(v) {
         return v.toLocaleString('ja-JP') + '円';
       },
       // 難易度ごとの財布・値段の生成パラメータ
+      // 難易度ごとの財布・値段の生成パラメータ（硬貨のみ。お札は使わない）
       levels: [
-        { coinMax: [4, 2, 4, 2, 3, 1], bills: { 1000: [1, 2] }, priceMin: 50, priceMax: 1500 },
-        { coinMax: [5, 2, 5, 2, 4, 2], bills: { 1000: [0, 3], 5000: [0, 1, 0.25] }, priceMin: 100, priceMax: 3500 },
-        { coinMax: [6, 3, 6, 3, 5, 2], bills: { 1000: [0, 4], 5000: [0, 1, 0.35], 10000: [0, 1, 0.15] }, priceMin: 150, priceMax: 8000 },
+        { coinMax: [4, 2, 4, 2, 4, 2], priceMin: 30, priceMax: 700 },
+        { coinMax: [5, 2, 5, 2, 5, 2], priceMin: 50, priceMax: 1200 },
+        { coinMax: [6, 3, 6, 3, 6, 3], priceMin: 80, priceMax: 2000 },
       ],
     },
     USD: {
@@ -43,10 +41,6 @@
         { v: 5, coin: true, label: '5¢', name: 'ニッケル (5¢)' },
         { v: 10, coin: true, label: '10¢', name: 'ダイム (10¢)' },
         { v: 25, coin: true, label: '25¢', name: 'クォーター (25¢)' },
-        { v: 100, coin: false, label: '$1', name: '1ドル札' },
-        { v: 500, coin: false, label: '$5', name: '5ドル札' },
-        { v: 1000, coin: false, label: '$10', name: '10ドル札' },
-        { v: 2000, coin: false, label: '$20', name: '20ドル札' },
       ],
       format(v) {
         const neg = v < 0;
@@ -54,9 +48,9 @@
         return neg ? '-' + s : s;
       },
       levels: [
-        { coinMax: [4, 2, 3, 3], bills: { 100: [1, 3], 500: [0, 1, 0.4] }, priceMin: 50, priceMax: 900 },
-        { coinMax: [5, 3, 4, 4], bills: { 100: [0, 4], 500: [0, 1, 0.5], 1000: [0, 1, 0.3] }, priceMin: 100, priceMax: 2500 },
-        { coinMax: [6, 3, 5, 5], bills: { 100: [0, 5], 500: [0, 2], 1000: [0, 1, 0.4], 2000: [0, 1, 0.3] }, priceMin: 150, priceMax: 4500 },
+        { coinMax: [4, 2, 4, 4], priceMin: 20, priceMax: 150 },
+        { coinMax: [5, 3, 5, 6], priceMin: 40, priceMax: 250 },
+        { coinMax: [6, 3, 6, 8], priceMin: 60, priceMax: 350 },
       ],
     },
   };
@@ -156,8 +150,6 @@
       for (let k = 0; k <= wallet[i]; k++) {
         pay[i] = k;
         rec(i - 1, paid + k * v);
-        // すでに足りていて、さらに大きいお金を足しても硬貨は減らない（お釣りが増えるだけ）
-        if (paid + k * v >= price && !cur.denoms[i].coin) break;
       }
       pay[i] = 0;
     })(n - 1, 0);
@@ -190,11 +182,6 @@
         // 少し偏らせる: 0 枚になりやすい硬貨と多めに入る硬貨を作る
         const max = lv.coinMax[ci++];
         w[i] = rng() < 0.2 ? 0 : randInt(rng, 0, max);
-      } else {
-        const b = lv.bills[d.v];
-        if (!b) return;
-        const [lo, hi, p] = b;
-        w[i] = p === undefined || rng() < p ? randInt(rng, lo, hi) : 0;
       }
     });
     return w;

@@ -1,5 +1,8 @@
 /*
- * 硬貨・紙幣の SVG 描画（金属のグラデーション・縁・刻印をそれっぽく再現）
+ * 硬貨・紙幣の SVG 描画
+ * 実物の図柄（1円の若木、5円の稲穂・歯車・水、10円の平等院鳳凰堂、50円の穴と「50」、
+ * 100円の桜、500円のバイカラー・クラッドと桐、米硬貨の肖像）を簡略化して再現する。
+* 硬貨のみ（お札は使わない）。
  * <img src="data:image/svg+xml,..."> として使うので ID の衝突を気にしなくてよい。
  */
 (function () {
@@ -7,244 +10,283 @@
 
   // 金属の色: [ハイライト, 中間, 影, 刻印の影]
   const METAL = {
-    aluminium: ['#ffffff', '#d9dcdf', '#9fa5ab', '#7d848b'],
-    brass: ['#fff3b8', '#e2bd55', '#a87d1f', '#7a5710'],
-    bronze: ['#ffd2ad', '#cc7a45', '#8a4320', '#5e2b12'],
-    cupro: ['#ffffff', '#cfd3d6', '#8f969c', '#6c737a'],
-    nickelBrass: ['#fff6cf', '#d9c37a', '#9e8638', '#6f5c20'],
-    copper: ['#ffcfa8', '#c9733f', '#7f3a18', '#56240c'],
-    silver: ['#ffffff', '#c8ced3', '#868d94', '#62696f'],
+    aluminium: ['#ffffff', '#dfe2e4', '#a9afb4', '#7f868c'],
+    brass: ['#fff1b0', '#dcb64e', '#a57a1d', '#6e500c'],
+    bronze: ['#f7c09a', '#bf6e3e', '#86411f', '#55270f'],
+    cupro: ['#ffffff', '#d3d7da', '#959ca2', '#666d73'],
+    nickelBrass: ['#fff4c4', '#d8bd6a', '#a08533', '#6a5418'],
+    whiteClad: ['#fffdf2', '#e3dcc6', '#b2a888', '#7a705a'],
+    copper: ['#ffc9a0', '#cf7743', '#8a3f1a', '#58250c'],
+    silver: ['#ffffff', '#cdd2d6', '#8c9399', '#5f666c'],
   };
-
-  function grad(id, m) {
-    const c = METAL[m];
-    return (
-      '<radialGradient id="' + id + '" cx="35%" cy="28%" r="80%">' +
-      '<stop offset="0" stop-color="' + c[0] + '"/>' +
-      '<stop offset=".45" stop-color="' + c[1] + '"/>' +
-      '<stop offset="1" stop-color="' + c[2] + '"/></radialGradient>' +
-      '<linearGradient id="' + id + 'r" x1="0" y1="0" x2="1" y2="1">' +
-      '<stop offset="0" stop-color="' + c[0] + '"/>' +
-      '<stop offset=".5" stop-color="' + c[2] + '"/>' +
-      '<stop offset="1" stop-color="' + c[3] + '"/></linearGradient>'
-    );
-  }
-
-  // 刻印（浮き出し）: ハイライト + 影 + 本体を重ねる
-  function emboss(svg, m) {
-    const c = METAL[m];
-    return (
-      '<g transform="translate(.7 .9)" fill="' + c[3] + '" stroke="' + c[3] + '" opacity=".55">' + svg + '</g>' +
-      '<g transform="translate(-.5 -.6)" fill="#fff" stroke="#fff" opacity=".7">' + svg + '</g>' +
-      '<g fill="' + c[1] + '" stroke="' + c[1] + '">' + svg + '</g>'
-    );
-  }
-
-  function arcText(id, text, r, top, size, font, spacing) {
-    if (top) r -= size * 0.75; // 上側は文字が外へ伸びるので内側に寄せる
-    // top=true なら上側に沿って、false なら下側に沿って文字を置く
-    const d = top
-      ? 'M ' + (50 - r) + ' 50 A ' + r + ' ' + r + ' 0 0 1 ' + (50 + r) + ' 50'
-      : 'M ' + (50 - r) + ' 50 A ' + r + ' ' + r + ' 0 0 0 ' + (50 + r) + ' 50';
-    return {
-      def: '<path id="' + id + '" d="' + d + '"/>',
-      use:
-        '<text font-family="' + font + '" font-size="' + size + '" font-weight="700" letter-spacing="' + (spacing || 0) + '" stroke-width="0">' +
-        '<textPath href="#' + id + '" startOffset="50%" text-anchor="middle">' + text + '</textPath></text>',
-    };
-  }
-
-  function txt(x, y, s, size, font, extra) {
-    return '<text x="' + x + '" y="' + y + '" font-family="' + font + '" font-size="' + size + '" font-weight="800" text-anchor="middle" stroke-width="0" ' + (extra || '') + '>' + s + '</text>';
-  }
 
   const JP = "'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP','Noto Serif CJK JP',serif";
   const NUM = "'Times New Roman','Noto Serif',Georgia,serif";
   const US = "'Times New Roman','Noto Serif',Georgia,serif";
 
-  // ---- モチーフ ----
-  function leaf(cx, cy, rx, ry, rot) {
-    return '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + rx + '" ry="' + ry + '" transform="rotate(' + rot + ' ' + cx + ' ' + cy + ')" stroke-width="0"/>';
+  function grad(id, m) {
+    const c = METAL[m];
+    return (
+      '<radialGradient id="' + id + '" cx="34%" cy="28%" r="85%">' +
+      '<stop offset="0" stop-color="' + c[0] + '"/>' +
+      '<stop offset=".5" stop-color="' + c[1] + '"/>' +
+      '<stop offset="1" stop-color="' + c[2] + '"/></radialGradient>'
+    );
   }
-  function sakura(cx, cy, r) {
+
+  /** 刻印（浮き出し）: 影 → ハイライト → 本体 の順に重ねる */
+  function emboss(svg, m, fill) {
+    const c = METAL[m];
+    return (
+      '<g transform="translate(.6 .8)" fill="' + c[3] + '" stroke="' + c[3] + '" opacity=".6">' + svg + '</g>' +
+      '<g transform="translate(-.45 -.55)" fill="#fff" stroke="#fff" opacity=".75">' + svg + '</g>' +
+      '<g fill="' + (fill || c[1]) + '" stroke="' + (fill || c[1]) + '">' + svg + '</g>'
+    );
+  }
+  // 細い線の彫り（耳・目・葉脈など）
+  function engrave(svg, m) {
+    const c = METAL[m];
+    return '<g fill="none" stroke="' + c[3] + '" stroke-opacity=".7" stroke-linecap="round">' + svg + '</g>';
+  }
+
+  let arcId = 0;
+  /**
+   * 円弧に沿った文字。角度は度（0=右, 90=下）。
+   * cw=true: 時計回り（文字の頭が外側。上側や左右の縁に使う）
+   * cw=false: 反時計回り（文字の頭が内側。下側の縁に使う）
+   */
+  function arc(text, r, a1, a2, cw, size, font, spacing) {
+    if (cw) r -= size * 0.72;
+    else r -= size * 0.05;
+    const id = 'a' + arcId++;
+    const p = (a) => [(50 + r * Math.cos(a * Math.PI / 180)).toFixed(2), (50 + r * Math.sin(a * Math.PI / 180)).toFixed(2)];
+    const [x1, y1] = p(a1), [x2, y2] = p(a2);
+    const large = Math.abs(a2 - a1) > 180 ? 1 : 0;
+    return {
+      def: '<path id="' + id + '" d="M' + x1 + ' ' + y1 + ' A' + r + ' ' + r + ' 0 ' + large + ' ' + (cw ? 1 : 0) + ' ' + x2 + ' ' + y2 + '"/>',
+      use: '<text font-family="' + font + '" font-size="' + size + '" font-weight="700" letter-spacing="' + (spacing || 0) + '" stroke-width="0">' +
+        '<textPath href="#' + id + '" startOffset="50%" text-anchor="middle">' + text + '</textPath></text>',
+    };
+  }
+  const top = (t, size, font, sp, r) => arc(t, r || 42, 205, 335, true, size, font, sp);
+  const bottom = (t, size, font, sp, r) => arc(t, r || 42, 155, 25, false, size, font, sp);
+
+  function txt(x, y, s, size, font, extra) {
+    return '<text x="' + x + '" y="' + y + '" font-family="' + font + '" font-size="' + size + '" font-weight="800" text-anchor="middle" stroke-width="0" ' + (extra || '') + '>' + s + '</text>';
+  }
+  const f2 = (n) => n.toFixed(2);
+
+  // 先のとがった葉（基部 x,y から角度 rot 方向へ長さ len）
+  function leafPath(x, y, len, w, rot) {
+    return '<path d="M0 0 C' + f2(w) + ' ' + f2(-len * 0.3) + ' ' + f2(w * 0.7) + ' ' + f2(-len * 0.8) + ' 0 ' + f2(-len) +
+      ' C' + f2(-w * 0.7) + ' ' + f2(-len * 0.8) + ' ' + f2(-w) + ' ' + f2(-len * 0.3) + ' 0 0Z" transform="translate(' + f2(x) + ' ' + f2(y) + ') rotate(' + rot + ')" stroke-width="0"/>';
+  }
+  function grain(x, y, rx, ry, rot) {
+    return '<ellipse cx="' + f2(x) + '" cy="' + f2(y) + '" rx="' + rx + '" ry="' + ry + '" transform="rotate(' + f2(rot) + ' ' + f2(x) + ' ' + f2(y) + ')" stroke-width="0"/>';
+  }
+  // 切れ込みのある桜の花びら 5 枚
+  function sakura(cx, cy, r, rot) {
+    const petal = 'M0 0 C' + f2(-r * .55) + ' ' + f2(-r * .25) + ' ' + f2(-r * .6) + ' ' + f2(-r * .95) + ' ' + f2(-r * .16) + ' ' + f2(-r) +
+      ' L0 ' + f2(-r * .84) + ' L' + f2(r * .16) + ' ' + f2(-r) + ' C' + f2(r * .6) + ' ' + f2(-r * .95) + ' ' + f2(r * .55) + ' ' + f2(-r * .25) + ' 0 0Z';
     let s = '';
-    for (let i = 0; i < 5; i++) {
-      const a = (i * 72 - 90) * Math.PI / 180;
-      const x = cx + Math.cos(a) * r * 0.55, y = cy + Math.sin(a) * r * 0.55;
-      s += '<ellipse cx="' + x.toFixed(2) + '" cy="' + y.toFixed(2) + '" rx="' + (r * 0.32).toFixed(2) + '" ry="' + (r * 0.5).toFixed(2) + '" transform="rotate(' + (i * 72) + ' ' + x.toFixed(2) + ' ' + y.toFixed(2) + ')" stroke-width="0"/>';
-    }
+    for (let i = 0; i < 5; i++) s += '<path d="' + petal + '" transform="translate(' + cx + ' ' + cy + ') rotate(' + (rot + i * 72) + ')" stroke-width="0"/>';
     return s;
   }
-  function laurel(r, count, from, to) {
-    let s = '';
-    for (let i = 0; i < count; i++) {
-      const t = from + (to - from) * (i / (count - 1));
-      const a = t * Math.PI / 180;
-      s += leaf((50 + Math.cos(a) * r).toFixed(2), (50 + Math.sin(a) * r).toFixed(2), 2, 4.6, t + 90 + 25);
+
+  // ---- 肖像（左向きの横顔。右向きは反転） ----
+  const HEAD =
+    'M63 86 C64 78 66 70 68 64 C73 58 75 47 73 38 C71 28 63 21 52 21 C42 21 36 27 35 35 L34 41 ' +
+    'C33.5 43 32.5 45 30 48.5 L28.6 51.6 C28.4 52.8 29.6 53.6 32.6 54 L32.6 56 C31.6 57 31.8 58.2 33 59 ' +
+    'C32 60.4 32.8 62.2 34 63 C34.2 66 36.4 68.2 40 68.4 C42 70 42.4 76 41.4 86 Z';
+  const BUST = 'M24 96 C30 88 38 85 41.4 84.5 L63 84.5 C70 85 78 89 82 96 Z';
+  function portrait(kind) {
+    let shape = HEAD + BUST;
+    let lines = 'M58 42 C63 42 64.5 51 58.6 53.5" /><path d="M37 40.6 L41 40.2" /><path d="M36 35 C42 30 50 30 56 34';
+    if (kind === 'lincoln') {
+      // あごひげと豊かな髪
+      shape += 'M60 48 C62 62 56 75 43 75 C36 75 32.5 70 32.4 63 L34 61 C37 67 44 67 50 62 Z' +
+        'M50 20 C60 16 72 20 76 32 C78 40 76 48 72 52 L68 40 Z';
+      lines = 'M58 41 C62 41 63.5 48 59 50" /><path d="M37 40.6 L41 40.2" /><path d="M44 66 C47 70 52 70 56 64" /><path d="M54 24 C62 23 70 28 72 36';
+    } else if (kind === 'washington') {
+      // 後ろで結んだ髪（リボン）と巻き毛
+      shape += 'M66 64 C74 64 78 72 74 82 C71 77 68 74 64 72 Z M70 66 C76 60 80 64 77 68 C80 70 77 75 72 71 Z';
+      lines = 'M58 42 C63 42 64.5 51 58.6 53.5" /><path d="M37 40.6 L41 40.2" /><path d="M60 34 C64 32 68 35 67 39" /><path d="M61 40 C65 38 69 41 68 45';
+    } else if (kind === 'jefferson') {
+      shape += 'M67 62 C73 63 75 70 72 77 C70 73 67 71 64 70 Z M41 84.5 L46 92 L52 84.5 Z';
+      lines = 'M58 42 C63 42 64.5 51 58.6 53.5" /><path d="M37 40.6 L41 40.2" /><path d="M48 24 C56 22 64 26 68 34';
+    } else if (kind === 'roosevelt') {
+      lines = 'M58 42 C63 42 64.5 51 58.6 53.5" /><path d="M37 40.6 L41 40.2" /><path d="M58 26 C64 30 68 36 69 44';
     }
-    return s;
+    return { shape: '<path d="' + shape + '" stroke-width="0"/>', lines: '<path d="' + lines + '" stroke-width=".7"/>' };
   }
 
   // ---- 円 ----
   const JPY = {
-    1: { metal: 'aluminium', rim: 'plain', art: (m) => {
-      const t = arcText('t', '日本国', 36, true, 9, JP, 3), b = arcText('b', '一円', 36, false, 9, JP, 4);
-      return { defs: t.def + b.def, body: emboss(
-        t.use + b.use +
-        '<path d="M50 70 L50 46" stroke-width="2.2" fill="none"/>' +
-        leaf(43, 44, 5, 9, -40) + leaf(57, 44, 5, 9, 40) + leaf(50, 36, 3.6, 7, 0) +
-        txt(50, 80, '', 1, JP), m) };
+    // 1円 表: 若木
+    1: { metal: 'aluminium', matte: true, art(m) {
+      const t = top('日本国', 9, JP, 4), b = bottom('一円', 9.5, JP, 6);
+      let tree = '<path d="M50 74 C49 64 51.5 52 50 30" fill="none" stroke-width="2"/>' +
+        '<path d="M50 60 C45 56 41 50 40 44" fill="none" stroke-width="1.3"/><path d="M50 56 C55 52 59 47 60 41" fill="none" stroke-width="1.3"/>';
+      tree += leafPath(50, 64, 15, 6, -62) + leafPath(50, 64, 15, 6, 62) + leafPath(40, 45, 10, 4.2, -20) + leafPath(41, 50, 9, 3.8, -78) +
+        leafPath(60, 42, 10, 4.2, 22) + leafPath(59, 47, 9, 3.8, 80) + leafPath(50, 40, 9, 3.6, -30) + leafPath(50, 38, 9, 3.6, 30) + leafPath(50, 32, 8, 3.4, 0);
+      return { defs: t.def + b.def, body: emboss(t.use + b.use + tree, m) +
+        engrave('<path d="M50 64 L38 58" stroke-width=".4"/><path d="M50 64 L62 58" stroke-width=".4"/>', m) };
     } },
-    5: { metal: 'brass', hole: 9.5, rim: 'plain', art: (m) => {
-      // 稲穂: 穴の左右から上へ弧を描く茎に、籾を並べる
-      let ear = '<path d="M36 62 Q28 40 44 16" fill="none" stroke-width="1.4"/><path d="M64 62 Q72 40 56 16" fill="none" stroke-width="1.4"/>';
-      for (let i = 0; i < 9; i++) {
-        const t = 0.2 + i * 0.09;
-        const x = (1 - t) * (1 - t) * 36 + 2 * (1 - t) * t * 28 + t * t * 44;
-        const y = (1 - t) * (1 - t) * 62 + 2 * (1 - t) * t * 40 + t * t * 16;
-        ear += leaf((x - 2.6).toFixed(2), y.toFixed(2), 1.5, 3.2, -35) + leaf((x + 2.6).toFixed(2), (y - 1).toFixed(2), 1.5, 3.2, 35);
-        ear += leaf((100 - x - 2.6).toFixed(2), (y - 1).toFixed(2), 1.5, 3.2, -35) + leaf((100 - x + 2.6).toFixed(2), y.toFixed(2), 1.5, 3.2, 35);
-      }
-      let gear = '';
+    // 5円 表: 稲穂・歯車・水、「五円」
+    5: { metal: 'brass', hole: 11, art(m) {
+      let gear = '<circle cx="50" cy="50" r="15" fill="none" stroke-width="3"/>';
+      for (let i = 0; i < 18; i++) gear += '<rect x="-1.7" y="-19.6" width="3.4" height="4.4" transform="translate(50 50) rotate(' + i * 20 + ')" stroke-width="0"/>';
+      // 稲穂: 左下から左側を上り、上で右へ垂れ下がる
+      let ear = '<path d="M30 70 C22 52 26 30 42 22 C54 16 66 20 72 32" fill="none" stroke-width="1.6"/>';
+      const bez = (t) => {
+        const P = [[30, 70], [22, 52], [26, 30], [42, 22]], Q = [[42, 22], [54, 16], [66, 20], [72, 32]];
+        const pts = t < 1 ? P : Q, u = t < 1 ? t : t - 1;
+        const k = [(1 - u) ** 3, 3 * (1 - u) ** 2 * u, 3 * (1 - u) * u * u, u ** 3];
+        return [0, 1].map((d) => k.reduce((s, kk, i) => s + kk * pts[i][d], 0));
+      };
       for (let i = 0; i < 16; i++) {
-        const a = i * 22.5 * Math.PI / 180;
-        gear += '<rect x="-1.6" y="-17" width="3.2" height="4" transform="translate(50 50) rotate(' + i * 22.5 + ')" stroke-width="0"/>';
+        const t = 0.55 + i * 0.09;
+        const [x, y] = bez(t), [x2, y2] = bez(Math.min(1.999, t + 0.02));
+        const ang = Math.atan2(y2 - y, x2 - x) * 180 / Math.PI;
+        ear += grain(x + Math.cos((ang - 90) * Math.PI / 180) * 3, y + Math.sin((ang - 90) * Math.PI / 180) * 3, 1.7, 3.2, ang + 60);
+        ear += grain(x + Math.cos((ang + 90) * Math.PI / 180) * 3, y + Math.sin((ang + 90) * Math.PI / 180) * 3, 1.7, 3.2, ang + 120);
       }
-      const water = '<path d="M26 72 q6 -3 12 0 t12 0 t12 0 t12 0" fill="none" stroke-width="1.6"/><path d="M30 78 q5 -3 10 0 t10 0 t10 0 t10 0" fill="none" stroke-width="1.6"/>';
-      return { defs: '', body: emboss(gear + '<circle cx="50" cy="50" r="13.5" fill="none" stroke-width="1.6"/>' + ear + water +
-        txt(50, 92, '五円', 10, JP, 'letter-spacing="3"'), m) };
+      ear += leafPath(30, 70, 22, 3.5, -8) + leafPath(31, 69, 18, 3, 20);
+      const water = '<path d="M34 70 H66" stroke-width="2.2"/><path d="M38 75 H62" stroke-width="2.2"/><path d="M42 80 H58" stroke-width="2.2"/>';
+      return { defs: '', body: emboss(gear + ear + water + txt(50, 92, '五　円', 9, JP), m) };
     } },
-    10: { metal: 'bronze', rim: 'plain', art: (m) => {
-      const t = arcText('t', '日本国', 37, true, 8.5, JP, 3);
-      return { defs: t.def, body: emboss(t.use + laurel(34, 9, 110, 230) + laurel(34, 9, 70, -50) +
-        txt(50, 60, '10', 30, NUM, 'letter-spacing="-1"') + txt(50, 73, '令和七年', 5.5, JP), m) };
+    // 10円 表: 平等院鳳凰堂
+    10: { metal: 'bronze', patina: true, art(m) {
+      const t = top('日本国', 9, JP, 4), b = bottom('十円', 9.5, JP, 6);
+      let hall =
+        // 中堂の上の屋根と鳳凰
+        '<path d="M36 38 Q50 33 64 38 L61 34.5 Q50 30.5 39 34.5 Z" stroke-width="0"/>' +
+        '<path d="M47.5 30.8 h5 v1.5 h-5z M48.6 28 l1.4 -2.4 l1.4 2.4z" stroke-width="0"/>' +
+        '<rect x="42" y="38" width="16" height="5" stroke-width="0"/>' +
+        // 中堂の下の屋根
+        '<path d="M28 48 Q50 42.5 72 48 L68 44 Q50 40 32 44 Z" stroke-width="0"/>' +
+        '<rect x="36" y="48" width="28" height="7" stroke-width="0"/>' +
+        // 翼廊と隅楼
+        '<path d="M14 54 Q24 51.5 36 52.5 L36 50.5 Q24 50 16 51.5 Z M64 52.5 Q76 51.5 86 54 L84 51.5 Q76 50 64 50.5 Z" stroke-width="0"/>' +
+        '<rect x="16" y="54" width="20" height="4" stroke-width="0"/><rect x="64" y="54" width="20" height="4" stroke-width="0"/>' +
+        '<path d="M14 50 Q19 47 24 50 L22.5 47.5 Q19 46 15.5 47.5Z M76 50 Q81 47 86 50 L84.5 47.5 Q81 46 77.5 47.5Z" stroke-width="0"/>' +
+        '<rect x="17" y="50" width="6" height="4" stroke-width="0"/><rect x="77" y="50" width="6" height="4" stroke-width="0"/>' +
+        // 池
+        '<path d="M22 63 H78" stroke-width="1.2"/><path d="M30 67.5 H70" stroke-width="1.2"/>';
+      const cols = '<path d="M40 49 V55 M44 49 V55 M48 49 V55 M52 49 V55 M56 49 V55 M60 49 V55 M20 55 V58 M25 55 V58 M30 55 V58 M70 55 V58 M75 55 V58 M80 55 V58 M46 38.5 V43 M50 38.5 V43 M54 38.5 V43" stroke-width=".5"/>';
+      return { defs: t.def + b.def, body: emboss(t.use + b.use + hall, m) + engrave(cols, m) };
     } },
-    50: { metal: 'cupro', hole: 9, rim: 'reeded', art: (m) => {
-      let petals = '';
-      for (let i = 0; i < 24; i++) petals += '<ellipse cx="50" cy="33" rx="2.4" ry="5.5" transform="rotate(' + i * 15 + ' 50 50)" stroke-width="0"/>';
-      const t = arcText('t', '日本国', 39, true, 7.5, JP, 3), b = arcText('b', '五十円', 39, false, 7.5, JP, 3);
-      return { defs: t.def + b.def, body: emboss(petals + t.use + b.use, m) };
+    // 50円 裏: 穴・「50」・年号
+    50: { metal: 'cupro', hole: 9.5, reeded: true, art(m) {
+      return { defs: '', body: emboss(txt(50, 86, '50', 26, NUM, 'letter-spacing="-1"') + txt(50, 30, '令和七年', 7.5, JP, 'letter-spacing="1"'), m) };
     } },
-    100: { metal: 'cupro', rim: 'reeded', art: (m) => {
-      const t = arcText('t', '日本国', 37, true, 8, JP, 3), b = arcText('b', '百円', 37, false, 8.5, JP, 4);
-      return { defs: t.def + b.def, body: emboss(t.use + b.use + sakura(50, 38, 13) + sakura(36, 59, 10) + sakura(64, 59, 10) +
-        '<circle cx="50" cy="38" r="2.2" fill="#000" opacity=".15" stroke-width="0"/>', m) };
+    // 100円 表: 桜
+    100: { metal: 'cupro', reeded: true, art(m) {
+      const t = top('日本国', 8.5, JP, 4), b = bottom('百円', 9.5, JP, 7);
+      const flowers = sakura(57, 40, 13, 8) + sakura(37, 55, 11, -14) + sakura(60, 64, 9.5, 30);
+      const centers = [[57, 40, 3], [37, 55, 2.6], [60, 64, 2.2]].map(([x, y, r]) => '<circle cx="' + x + '" cy="' + y + '" r="' + r + '"/>').join('');
+      let stamens = '';
+      [[57, 40, 6], [37, 55, 5], [60, 64, 4.3]].forEach(([x, y, r]) => {
+        for (let i = 0; i < 10; i++) {
+          const a = i * 36 * Math.PI / 180;
+          stamens += '<path d="M' + x + ' ' + y + ' L' + f2(x + Math.cos(a) * r) + ' ' + f2(y + Math.sin(a) * r) + '" stroke-width=".35"/>';
+        }
+      });
+      return { defs: t.def + b.def, body: emboss(t.use + b.use + flowers, m) + engrave(stamens + centers.replace(/<circle/g, '<circle stroke-width=".5"'), m) };
     } },
-    500: { metal: 'nickelBrass', rim: 'reeded', bicolor: true, art: (m) => {
-      const t = arcText('t', 'NIPPON', 33, true, 6, US, 2), b = arcText('b', 'JAPAN', 33, false, 6, US, 2);
-      return { defs: t.def + b.def, body: emboss(t.use + b.use + txt(50, 62, '500', 27, NUM, 'letter-spacing="-1.5"') +
-        '<path d="M30 70 h40" stroke-width="1" fill="none"/>', m) };
+    // 500円 表（2021年〜）: バイカラー・クラッド、桐
+    500: { metal: 'nickelBrass', reeded: true, bicolor: true, art(m) {
+      const t = top('日本国', 7.5, JP, 3.5, 44.5), b = bottom('五百円', 7.5, JP, 4, 44.5);
+      const fill = METAL.whiteClad[1];
+      let kiri =
+        '<path d="M50 52 C41 51 37 58 42 63 L50 71 L58 63 C63 58 59 51 50 52Z" stroke-width="0"/>' +
+        '<path d="M48 54 C40 50 32 53 32 60 L33 68 L40 63 C44 60 47 57 48 54Z" stroke-width="0"/>' +
+        '<path d="M52 54 C60 50 68 53 68 60 L67 68 L60 63 C56 60 53 57 52 54Z" stroke-width="0"/>' +
+        '<path d="M50 52 V27 M46 52 C44 44 41 38 37 33 M54 52 C56 44 59 38 63 33" fill="none" stroke-width="1"/>';
+      // 花: 中央 7・左右 5
+      [[50, 28], [47.5, 32.5], [52.5, 32.5], [47, 38], [53, 38], [46.5, 43.5], [53.5, 43.5]].forEach(([x, y]) => (kiri += '<circle cx="' + x + '" cy="' + y + '" r="2.1" stroke-width="0"/>'));
+      [[37, 33], [36.5, 38.5], [40.5, 36.5], [40.5, 42], [44, 40.5]].forEach(([x, y]) => (kiri += '<circle cx="' + x + '" cy="' + y + '" r="1.9" stroke-width="0"/>' + '<circle cx="' + (100 - x) + '" cy="' + y + '" r="1.9" stroke-width="0"/>'));
+      const veins = '<path d="M50 54 V69 M48 55 L36 64 M52 55 L64 64" stroke-width=".4"/>';
+      return { defs: t.def + b.def, body: emboss(t.use + b.use, m) + emboss(kiri, 'whiteClad', fill) + engrave(veins, 'whiteClad') };
     } },
   };
 
-  // ---- セント ----
+  // ---- セント（表: 肖像） ----
   const USD = {
-    1: { metal: 'copper', rim: 'plain', art: (m) => {
-      const t = arcText('t', 'UNITED STATES OF AMERICA', 38, true, 5.9, US, .2), b = arcText('b', 'ONE CENT', 37, false, 9, US, 1.5);
-      const shield = '<path d="M36 30 h28 v6 h-28 z" stroke-width="0"/><path d="M36 37 h28 v16 q0 14 -14 18 q-14 -4 -14 -18 z" fill="none" stroke-width="1.6"/>';
-      let bars = '';
-      for (let i = 0; i < 6; i++) bars += '<rect x="' + (38.5 + i * 4) + '" y="38" width="2" height="' + (24 - Math.abs(i - 2.5) * 2) + '" stroke-width="0"/>';
-      return { defs: t.def + b.def, body: emboss(t.use + b.use + shield + bars, m) };
+    // 1¢ リンカーン（右向き）
+    1: { metal: 'copper', art(m) {
+      const t = top('IN GOD WE TRUST', 6.8, US, 1, 43);
+      const p = portrait('lincoln');
+      return { defs: t.def, body: emboss(t.use + txt(17, 67, 'LIBERTY', 5, US, 'letter-spacing=".3"') + txt(79, 72, '2025', 6.4, US), m) +
+        '<g transform="translate(100 0) scale(-1 1) translate(3 2) scale(.94)">' + emboss(p.shape, m, 'url(#pg)') + engrave(p.lines, m) + '</g>' };
     } },
-    5: { metal: 'silver', rim: 'plain', art: (m) => {
-      const t = arcText('t', 'E PLURIBUS UNUM', 37, true, 6.5, US, .8), b = arcText('b', 'FIVE CENTS', 37, false, 8, US, 1.2);
-      let cols = '';
-      for (let i = 0; i < 6; i++) cols += '<rect x="' + (35 + i * 6) + '" y="46" width="2.4" height="14" stroke-width="0"/>';
-      const house = '<path d="M30 46 L50 33 L70 46 Z" stroke-width="0"/><path d="M42 33 q8 -10 16 0" stroke-width="0"/><rect x="26" y="60" width="48" height="3" stroke-width="0"/>' + cols +
-        txt(50, 71, 'MONTICELLO', 5.8, US, 'letter-spacing=".6"');
-      return { defs: t.def + b.def, body: emboss(t.use + b.use + house, m) };
+    // 5¢ ジェファーソン（左向き）
+    5: { metal: 'silver', art(m) {
+      const l = arc('IN GOD WE TRUST', 42, 115, 235, true, 6, US, .8), r = arc('LIBERTY ★ 2025', 42, 300, 395, true, 6, US, .8);
+      const p = portrait('jefferson');
+      return { defs: l.def + r.def, body: emboss(l.use + r.use, m) + '<g transform="translate(4 2) scale(.92)">' + emboss(p.shape, m, 'url(#pg)') + engrave(p.lines, m) + '</g>' };
     } },
-    10: { metal: 'silver', rim: 'reeded', art: (m) => {
-      const t = arcText('t', 'UNITED STATES OF AMERICA', 38, true, 6.6, US, .2), b = arcText('b', 'ONE DIME', 37, false, 9, US, 1.5);
-      const torch = '<rect x="47.8" y="34" width="4.4" height="32" stroke-width="0"/><path d="M45 34 h10 l-1.5 -4 h-7 z" stroke-width="0"/><path d="M50 18 q6 6 2 12 h-4 q-4 -6 2 -12" stroke-width="0"/>';
-      const branches = laurel(18, 5, 120, 200).replace(/rotate\(/g, 'rotate(') + laurel(18, 5, 60, -20);
-      return { defs: t.def + b.def, body: emboss(t.use + b.use + torch + branches, m) };
+    // 10¢ ルーズベルト（左向き）
+    10: { metal: 'silver', reeded: true, art(m) {
+      const l = arc('LIBERTY', 42, 140, 250, true, 8, US, 1.5);
+      const p = portrait('roosevelt');
+      return { defs: l.def, body: emboss(l.use + txt(25, 69, 'IN GOD', 4.4, US) + txt(25, 74, 'WE TRUST', 4.4, US) + txt(70, 84, '2025', 6, US), m) +
+        '<g transform="translate(6 0) scale(.92)">' + emboss(p.shape, m, 'url(#pg)') + engrave(p.lines, m) + '</g>' };
     } },
-    25: { metal: 'silver', rim: 'reeded', art: (m) => {
-      const t = arcText('t', 'UNITED STATES OF AMERICA', 38, true, 6.4, US, .3), b = arcText('b', 'QUARTER DOLLAR', 38, false, 7.2, US, .8);
-      const eagle =
-        '<path d="M50 34 c-3 0 -4 3 -3.5 5 l-1.5 2 l3 .2 c0 3 -1 6 -1 10 l-3 12 h12 l-3 -12 c0 -4 -1 -7 -1 -10 c2 -1 2 -3 1.5 -5 c-.5 -2 -1.5 -2.2 -3.5 -2.2z" stroke-width="0"/>' +
-        '<path d="M46 46 C38 40 28 36 20 40 C26 44 30 46 33 48 C28 49 25 51 23 53 C30 53 36 53 46 52 Z" stroke-width="0"/>' +
-        '<path d="M54 46 C62 40 72 36 80 40 C74 44 70 46 67 48 C72 49 75 51 77 53 C70 53 64 53 54 52 Z" stroke-width="0"/>' +
-        '<path d="M40 66 q10 4 20 0" fill="none" stroke-width="1.4"/>';
-      return { defs: t.def + b.def, body: emboss(t.use + b.use + eagle, m) };
+    // 25¢ ワシントン（左向き）
+    25: { metal: 'silver', reeded: true, art(m) {
+      const t = top('LIBERTY', 9, US, 3, 43), b = bottom('2025', 7, US, 2, 43);
+      const p = portrait('washington');
+      return { defs: t.def + b.def, body: emboss(t.use + b.use + txt(21, 71, 'IN GOD', 4.4, US) + txt(21, 76, 'WE TRUST', 4.4, US), m) +
+        '<g transform="translate(5 3) scale(.88)">' + emboss(p.shape, m, 'url(#pg)') + engrave(p.lines, m) + '</g>' };
     } },
   };
 
   function coinSVG(spec) {
+    arcId = 0;
     const m = spec.metal;
     const c = METAL[m];
     const art = spec.art(m);
-    let defs = grad('g', m) + art.defs;
-    if (spec.bicolor) defs += grad('g2', 'cupro');
+    let defs = grad('g', m) + art.defs +
+      '<linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c[0] + '"/><stop offset=".55" stop-color="' + c[2] + '"/><stop offset="1" stop-color="' + c[3] + '"/></linearGradient>' +
+      // 金属の地肌のザラつき
+      '<filter id="n" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="' + (spec.matte ? 1.9 : 1.3) + '" numOctaves="2" seed="7"/>' +
+      '<feColorMatrix values="1 0 0 0 0  1 0 0 0 0  1 0 0 0 0  0 0 0 0 ' + (spec.matte ? 0.22 : 0.12) + '"/><feComposite in2="SourceGraphic" operator="in"/></filter>';
+    defs += '<linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c[0] + '"/><stop offset=".6" stop-color="' + c[1] + '"/><stop offset="1" stop-color="' + c[2] + '"/></linearGradient>';
+    if (spec.bicolor) defs += grad('g2', 'whiteClad');
+    if (spec.patina) defs += '<radialGradient id="pt" cx="70%" cy="75%" r="60%"><stop offset="0" stop-color="#4a2410" stop-opacity=".35"/><stop offset="1" stop-color="#4a2410" stop-opacity="0"/></radialGradient>';
     let mask = '';
     if (spec.hole) {
       defs += '<mask id="h"><rect width="100" height="100" fill="#fff"/><circle cx="50" cy="50" r="' + spec.hole + '" fill="#000"/></mask>';
       mask = ' mask="url(#h)"';
     }
-    let rimDeco = '';
-    if (spec.rim === 'reeded') {
-      // 縁のギザギザ（面からも見える細かな刻み）
-      for (let i = 0; i < 90; i++) rimDeco += '<rect x="49.6" y="1.2" width=".8" height="3" transform="rotate(' + i * 4 + ' 50 50)"/>';
-      rimDeco = '<g fill="' + c[3] + '" opacity=".45">' + rimDeco + '</g>';
-    }
     let body =
-      '<circle cx="50" cy="50" r="49" fill="url(#gr)"/>' +
-      '<circle cx="50" cy="50" r="46.5" fill="url(#g)"/>' +
-      rimDeco +
-      '<circle cx="50" cy="50" r="43" fill="none" stroke="' + c[2] + '" stroke-opacity=".6" stroke-width="1"/>' +
-      '<circle cx="50" cy="50" r="42.3" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width=".7"/>';
+      '<circle cx="50" cy="50" r="49.5" fill="url(#rim)"/>' +
+      '<circle cx="50" cy="50" r="47.6" fill="url(#g)"/>';
+    if (spec.reeded) {
+      let r = '';
+      for (let i = 0; i < 120; i++) r += '<rect x="49.7" y=".6" width=".6" height="1.6" transform="rotate(' + i * 3 + ' 50 50)"/>';
+      body += '<g fill="' + c[3] + '" opacity=".5">' + r + '</g>';
+    }
+    // 縁（盛り上がったリム）
+    body += '<circle cx="50" cy="50" r="45.2" fill="none" stroke="' + c[3] + '" stroke-opacity=".55" stroke-width="1"/>' +
+      '<circle cx="50" cy="50" r="44.6" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width=".6"/>';
     if (spec.bicolor) {
-      // 500円: 外周は黄色、中間リングは白銅、中心は黄色のバイカラー・クラッド
-      body += '<circle cx="50" cy="50" r="31" fill="url(#g2)"/><circle cx="50" cy="50" r="22" fill="url(#g)"/>' +
-        '<circle cx="50" cy="50" r="31" fill="none" stroke="' + c[3] + '" stroke-opacity=".5" stroke-width=".8"/>' +
-        '<circle cx="50" cy="50" r="22" fill="none" stroke="' + c[3] + '" stroke-opacity=".5" stroke-width=".8"/>';
+      // 外周: ニッケル黄銅（金色） / 内側: 白銅・銅・白銅の 3 層（境目に銅色の線）
+      body += '<circle cx="50" cy="50" r="33.5" fill="' + METAL.copper[1] + '"/>' +
+        '<circle cx="50" cy="50" r="32.8" fill="url(#g2)"/>' +
+        '<circle cx="50" cy="50" r="32.8" fill="none" stroke="' + METAL.whiteClad[3] + '" stroke-opacity=".5" stroke-width=".5"/>';
     }
     if (spec.hole) {
-      body += '<circle cx="50" cy="50" r="' + (spec.hole + 1.6) + '" fill="none" stroke="' + c[3] + '" stroke-opacity=".6" stroke-width="1.6"/>' +
-        '<circle cx="50" cy="50" r="' + (spec.hole + 0.5) + '" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width=".7"/>';
+      body += '<circle cx="50" cy="50" r="' + (spec.hole + 1.8) + '" fill="none" stroke="' + c[3] + '" stroke-opacity=".6" stroke-width="1.8"/>' +
+        '<circle cx="50" cy="50" r="' + (spec.hole + 0.6) + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width=".8"/>';
     }
+    body += '<circle cx="50" cy="50" r="47.6" fill="#fff" filter="url(#n)"/>';
+    if (spec.patina) body += '<circle cx="50" cy="50" r="47.6" fill="url(#pt)"/>';
     body += art.body;
     // 光の反射
-    body += '<ellipse cx="36" cy="28" rx="22" ry="12" fill="#fff" opacity=".18" transform="rotate(-30 36 28)"/>';
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs>' + defs.replace('id="gr"', 'id="gr"') +
-      '<linearGradient id="gr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c[0] + '"/><stop offset=".55" stop-color="' + c[2] + '"/><stop offset="1" stop-color="' + c[3] + '"/></linearGradient>' +
-      '</defs><g' + mask + '>' + body + '</g></svg>';
-  }
-
-  // ---- 紙幣 ----
-  const BILLS = {
-    'JPY-1000': { base: '#6f8fc4', dark: '#2f4c80', light: '#dbe6f6', text: '1000', sub: '千円', unit: '日本銀行券' },
-    'JPY-5000': { base: '#a184bf', dark: '#5b3e7c', light: '#ece2f6', text: '5000', sub: '五千円', unit: '日本銀行券' },
-    'JPY-10000': { base: '#b39a6c', dark: '#6a5530', light: '#f3ead7', text: '10000', sub: '壱万円', unit: '日本銀行券' },
-    'USD-100': { base: '#8aa286', dark: '#3e5a3d', light: '#eef3e6', text: '1', sub: 'ONE', unit: 'FEDERAL RESERVE NOTE' },
-    'USD-500': { base: '#9fae9a', dark: '#4b5f50', light: '#f0f2ea', text: '5', sub: 'FIVE', unit: 'FEDERAL RESERVE NOTE' },
-    'USD-1000': { base: '#c4b07c', dark: '#6e5c2d', light: '#f5efdb', text: '10', sub: 'TEN', unit: 'FEDERAL RESERVE NOTE' },
-    'USD-2000': { base: '#86ae9e', dark: '#356152', light: '#e8f2ec', text: '20', sub: 'TWENTY', unit: 'FEDERAL RESERVE NOTE' },
-  };
-  function billSVG(key) {
-    const b = BILLS[key];
-    const us = key.startsWith('USD');
-    const f = us ? US : JP;
-    let guil = '';
-    for (let i = 0; i < 12; i++) guil += '<ellipse cx="' + (us ? 100 : 40) + '" cy="50" rx="' + (6 + i * 2.2) + '" ry="' + (14 + i * 1.6) + '" fill="none" stroke="' + b.dark + '" stroke-opacity=".12" stroke-width=".6"/>';
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">' +
-      '<defs><linearGradient id="p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + b.light + '"/><stop offset=".5" stop-color="' + b.base + '"/><stop offset="1" stop-color="' + b.light + '"/></linearGradient></defs>' +
-      '<rect x="1" y="1" width="198" height="98" rx="4" fill="url(#p)" stroke="' + b.dark + '" stroke-width="1.5"/>' +
-      '<rect x="7" y="7" width="186" height="86" rx="2" fill="none" stroke="' + b.dark + '" stroke-opacity=".6" stroke-width="1.5" stroke-dasharray="2 1.2"/>' +
-      guil +
-      (us
-        ? '<ellipse cx="100" cy="50" rx="24" ry="30" fill="' + b.light + '" stroke="' + b.dark + '" stroke-width="1.5"/>' +
-          '<path d="M90 70 q0 -14 10 -16 q-8 -4 -7 -14 q2 -10 9 -10 q8 0 9 10 q1 10 -7 14 q10 2 10 16 z" fill="' + b.dark + '" fill-opacity=".45"/>' +
-          txt(22, 26, b.text, 18, f, 'fill="' + b.dark + '"') + txt(178, 90, b.text, 18, f, 'fill="' + b.dark + '"') +
-          txt(100, 17, 'THE UNITED STATES OF AMERICA', 8, f, 'fill="' + b.dark + '" letter-spacing=".5"') +
-          txt(100, 92, b.sub + ' DOLLAR' + (b.text === '1' ? '' : 'S'), 8, f, 'fill="' + b.dark + '" letter-spacing="1"')
-        : '<circle cx="150" cy="48" r="26" fill="' + b.light + '" fill-opacity=".8" stroke="' + b.dark + '" stroke-opacity=".5"/>' +
-          '<path d="M140 70 q0 -12 10 -14 q-7 -4 -6 -13 q2 -9 8 -9 q7 0 8 9 q1 9 -6 13 q10 2 10 14 z" fill="' + b.dark + '" fill-opacity=".35"/>' +
-          txt(58, 62, b.text, 30, NUM, 'fill="' + b.dark + '" letter-spacing="-1"') +
-          txt(58, 84, b.sub, 13, f, 'fill="' + b.dark + '" letter-spacing="4"') +
-          txt(58, 24, b.unit, 9, f, 'fill="' + b.dark + '" letter-spacing="3"')) +
-      '</svg>';
+    body += '<ellipse cx="35" cy="27" rx="24" ry="12" fill="#fff" opacity=".16" transform="rotate(-32 35 27)"/>';
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs>' + defs + '</defs><g' + mask + '>' + body + '</g></svg>';
   }
 
   const cache = {};
@@ -255,8 +297,7 @@
   function moneyImage(code, v) {
     const key = code + '-' + v;
     if (cache[key]) return cache[key];
-    const spec = (code === 'JPY' ? JPY : USD)[v];
-    cache[key] = uri(spec ? coinSVG(spec) : billSVG(key));
+    cache[key] = uri(coinSVG((code === 'JPY' ? JPY : USD)[v]));
     return cache[key];
   }
 
