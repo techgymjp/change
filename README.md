@@ -35,6 +35,10 @@ Web 版はビルド不要の静的サイトです。GitHub Pages では「Settin
 
 - 動作確認用 APK（デバッグ署名・テスト広告）: リリース画面 https://github.com/techgymjp/change/releases/tag/android-latest
 - APK を直接ダウンロード: https://github.com/techgymjp/change/releases/latest/download/change.apk
+- スマホで読み取る QR コード（リリース画面）:
+
+  ![APK のリリース画面の QR コード](docs/apk-qr.png)
+
 - `main` に push すると GitHub Actions（`.github/workflows/android.yml`）が APK をビルドして、上のリリースに載せます。
   GitHub Secrets にアップロード鍵（`ANDROID_KEYSTORE_BASE64` など 4 つ）があれば、Google Play 用の署名付き AAB（本番広告）も作り、実行結果の Artifacts に上げます。
 
