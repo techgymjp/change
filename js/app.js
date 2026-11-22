@@ -136,7 +136,7 @@
     const el = document.createElement('div');
     el.className = 'pcoin';
     el.dataset.v = d.v;
-    el.innerHTML = '<img src="' + ART.moneyImage(cur.code, d.v) + '" alt="" draggable="false">';
+    el.innerHTML = '<img src="' + ART.moneyImage(cur.code, d.v, p.face) + '" alt="" draggable="false">';
     el.title = d.name;
     el.setAttribute('role', 'button');
     el.setAttribute('aria-label', d.name);
@@ -161,7 +161,8 @@
     // 硬貨はシャッフルしてから順に積む（後から積んだものほど上）
     const coins = [];
     state.wallet.forEach((n, i) => {
-      for (let k = 0; k < n; k++) coins.push({ id: ++pieceSeq, i, where: 'purse' });
+      // 表と裏はランダム
+      for (let k = 0; k < n; k++) coins.push({ id: ++pieceSeq, i, where: 'purse', face: Math.random() < 0.5 ? 'a' : 'b' });
     });
     for (let k = coins.length - 1; k > 0; k--) {
       const j = Math.floor(Math.random() * (k + 1));
@@ -240,7 +241,7 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'ins-coin';
-      b.innerHTML = '<img src="' + ART.moneyImage(cur.code, cur.denoms[p.i].v) + '" alt="">';
+      b.innerHTML = '<img src="' + ART.moneyImage(cur.code, cur.denoms[p.i].v, p.face) + '" alt="">';
       b.title = cur.denoms[p.i].name + 'を返却';
       b.addEventListener('click', () => returnPieces([p]));
       ins.appendChild(b);
@@ -383,6 +384,7 @@
       p.where = 'purse';
       scatter(p, 0.2);
       p.z = ++zTop;
+      setFace(p, Math.random() < 0.5 ? 'a' : 'b');
       $('purse').appendChild(p.el);
       p.el.classList.remove('fall');
       void p.el.offsetWidth;
@@ -399,6 +401,8 @@
     order.forEach(({ p }) => {
       scatter(p);
       p.z = ++zTop;
+      // 振ると裏返る硬貨もある
+      if (Math.random() < 0.5) setFace(p, p.face === 'a' ? 'b' : 'a');
     });
     const outer = $('purseOuter');
     outer.classList.remove('shake');
@@ -408,6 +412,11 @@
     setTimeout(() => $('purse').classList.remove('moving'), 500);
     S.shake(state.code, coins.map((p) => state.cur.denoms[p.i].v));
     render();
+  }
+
+  function setFace(p, face) {
+    p.face = face;
+    p.el.querySelector('img').src = ART.moneyImage(state.code, state.cur.denoms[p.i].v, face);
   }
 
   let toastTimer = null;

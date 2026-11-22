@@ -141,33 +141,29 @@
   const JPY = {
     // 1円 裏: 大きな「1」と年号（アルミ: 白くてツヤがない）
     1: { metal: 'aluminium', matte: true, art(m) {
-      const one = '<path d="M46.8 22 H56 V67 H46.8 V32.5 L39.5 35.8 V30 Z" stroke-width="0" fill-opacity=".8"/>' +
-        '<path d="M51.4 24.5 V64.5 M41.5 32.8 L48.5 28.4" fill="none" stroke-width="1.6" stroke-linecap="round"/>';
-      const year = txt(50, 82, '令和七年', 7.8, JP, 'letter-spacing="3.5"');
-      return { defs: '', body: emboss(one + year, m) };
+      const one = '<path d="M46.8 25 H55.6 V66 H46.8 V34.5 L40 37.6 V32.2 Z" stroke-width="0" fill-opacity=".8"/>' +
+        '<path d="M51.2 27.5 V63.5 M42 34.8 L48.5 30.6" fill="none" stroke-width="1.6" stroke-linecap="round"/>';
+      const ring = '<circle cx="50" cy="45.5" r="27" fill="none" stroke-width="1.6"/>';
+      const y = bottom('令和七年', 7.5, JP, 4, 42);
+      return { defs: y.def, body: emboss(ring + one + y.use, m) };
     } },
     // 5円 表: 稲穂・歯車・水、「五円」
     5: { metal: 'brass', hole: 11.36 /* 孔径 5mm ÷ 直径 22mm */, art(m) {
       let gear = '<circle cx="50" cy="50" r="15" fill="none" stroke-width="3"/>';
       for (let i = 0; i < 18; i++) gear += '<rect x="-1.7" y="-19.6" width="3.4" height="4.4" transform="translate(50 50) rotate(' + i * 20 + ')" stroke-width="0"/>';
-      // 稲穂: 左下から左側を上り、上で右へ垂れ下がる
-      let ear = '<path d="M30 70 C22 52 26 30 42 22 C54 16 66 20 72 32" fill="none" stroke-width="1.6"/>';
-      const bez = (t) => {
-        const P = [[30, 70], [22, 52], [26, 30], [42, 22]], Q = [[42, 22], [54, 16], [66, 20], [72, 32]];
-        const pts = t < 1 ? P : Q, u = t < 1 ? t : t - 1;
-        const k = [(1 - u) ** 3, 3 * (1 - u) ** 2 * u, 3 * (1 - u) * u * u, u ** 3];
-        return [0, 1].map((d) => k.reduce((s, kk, i) => s + kk * pts[i][d], 0));
-      };
-      for (let i = 0; i < 16; i++) {
-        const t = 0.55 + i * 0.09;
-        const [x, y] = bez(t), [x2, y2] = bez(Math.min(1.999, t + 0.02));
-        const ang = Math.atan2(y2 - y, x2 - x) * 180 / Math.PI;
-        ear += grain(x + Math.cos((ang - 90) * Math.PI / 180) * 3, y + Math.sin((ang - 90) * Math.PI / 180) * 3, 1.7, 3.2, ang + 60);
-        ear += grain(x + Math.cos((ang + 90) * Math.PI / 180) * 3, y + Math.sin((ang + 90) * Math.PI / 180) * 3, 1.7, 3.2, ang + 120);
+      // 稲穂: 左側に弧を描く葉（3 本）、右上に垂れ下がる穂
+      let ear = '<path d="M50 20 C34 21 22 32 21 50" fill="none" stroke-width="1.8"/>' +
+        '<path d="M50 14 C30 15 16 29 15 50" fill="none" stroke-width="1.8"/>' +
+        '<path d="M48 26 C38 27 29 35 27 47" fill="none" stroke-width="1.6"/>' +
+        '<path d="M50 20 C60 19 68 24 72 34" fill="none" stroke-width="1.4"/>';
+      for (let i = 0; i < 9; i++) {
+        const t = i / 8;
+        const x = 55 + t * 17, y = 19 + t * 15 + Math.sin(t * Math.PI) * -2;
+        ear += grain(x - 2.4, y + 1.6, 1.6, 3, 30) + grain(x + 2, y - 1.6, 1.6, 3, 70);
       }
-      ear += leafPath(30, 70, 22, 3.5, -8) + leafPath(31, 69, 18, 3, 20);
-      const water = '<path d="M34 70 H66" stroke-width="2.2"/><path d="M38 75 H62" stroke-width="2.2"/><path d="M42 80 H58" stroke-width="2.2"/>';
-      return { defs: '', body: emboss(gear + ear + water + txt(50, 92, '五　円', 9, JP), m) };
+      const water = '<path d="M27 68 H73" stroke-width="2"/><path d="M28 72.5 H72" stroke-width="2"/><path d="M31 77 H69" stroke-width="2"/>';
+      const box = '<rect x="38" y="81" width="24" height="10" rx="1.5" fill="none" stroke-width="1.2"/>';
+      return { defs: '', body: emboss(gear + ear + water + box + txt(50, 89.4, '五 円', 8, JP), m) };
     } },
     // 10円 表: 平等院鳳凰堂
     10: { metal: 'bronze', patina: true, art(m) {
@@ -185,14 +181,17 @@
         '<rect x="16" y="54" width="20" height="4" stroke-width="0"/><rect x="64" y="54" width="20" height="4" stroke-width="0"/>' +
         '<path d="M14 50 Q19 47 24 50 L22.5 47.5 Q19 46 15.5 47.5Z M76 50 Q81 47 86 50 L84.5 47.5 Q81 46 77.5 47.5Z" stroke-width="0"/>' +
         '<rect x="17" y="50" width="6" height="4" stroke-width="0"/><rect x="77" y="50" width="6" height="4" stroke-width="0"/>' +
-        // 池
-        '<path d="M22 63 H78" stroke-width="1.2"/><path d="M30 67.5 H70" stroke-width="1.2"/>';
+        // 唐草
+        '<path d="M20 64 q4 -4 8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0" fill="none" stroke-width="1.3"/>' +
+        '<path d="M24 70 q4 4 8 0 t8 0 t8 0 t8 0 t8 0 t8 0" fill="none" stroke-width="1.3"/>' +
+        [24, 32, 40, 48, 56, 64, 72].map((x) => '<circle cx="' + x + '" cy="67" r="1.2" stroke-width="0"/>').join('');
       const cols = '<path d="M40 49 V55 M44 49 V55 M48 49 V55 M52 49 V55 M56 49 V55 M60 49 V55 M20 55 V58 M25 55 V58 M30 55 V58 M70 55 V58 M75 55 V58 M80 55 V58 M46 38.5 V43 M50 38.5 V43 M54 38.5 V43" stroke-width=".5"/>';
       return { defs: t.def + b.def, body: emboss(t.use + b.use + hall, m) + engrave(cols, m) };
     } },
     // 50円 裏: 穴・「50」・年号
     50: { metal: 'cupro', hole: 9.52 /* 孔径 4mm ÷ 直径 21mm */, reeded: true, art(m) {
-      return { defs: '', body: emboss(txt(50, 86, '50', 26, NUM, 'letter-spacing="-1"') + txt(50, 30, '令和七年', 7.5, JP, 'letter-spacing="1"'), m) };
+      const y = bottom('令和七年', 8, JP, 4.5, 42);
+      return { defs: y.def, body: emboss(txt(50, 37, '50', 25, NUM, 'letter-spacing="-1"') + y.use, m) };
     } },
     // 100円 裏: 背の高い「100」（面取りしたような立体）と年号
     100: { metal: 'cupro', reeded: true, art(m) {
@@ -206,8 +205,8 @@
         '<path d="' + one + zero(43.5) + zero(63) + '" fill-rule="evenodd" stroke-width="0" fill-opacity=".72"/>' +
         '<path d="M36.5 24 V64.5 M27 65.8 H41.5 M24.5 31.5 L32 27.5" fill="none" stroke-width="1.8" stroke-linecap="round"/>' +
         '<path d="' + rr(46.5, 24.4, 12, 40.2, 6) + rr(66, 24.4, 12, 40.2, 6) + '" fill="none" stroke-width="1.8"/>';
-      const year = txt(50, 82.5, '令和7年', 8, JP, 'letter-spacing="4.5"');
-      return { defs: '', body: emboss(digits + year, m) };
+      const y = bottom('令和7年', 8, JP, 5, 42);
+      return { defs: y.def, body: emboss(digits + y.use, m) };
     } },
     // 500円 裏（2021年〜）: 全体は淡い銀色。「500」（0 の中に潜像の縦線）、上に竹、左右に橘、外周に点の輪
     500: { metal: 'nickel500', reeded: true, bicolor: true, art(m) {
@@ -272,6 +271,149 @@
     } },
   };
 
+  // ================= もう片面 =================
+  // 円弧に沿って伸びる枝と葉（from→to の向きに伸びる）
+  function laurelRing(r, n, from, to, len, w) {
+    const dir = to > from ? 1 : -1;
+    const P = (t) => [50 + Math.cos(t * Math.PI / 180) * r, 50 + Math.sin(t * Math.PI / 180) * r];
+    const [x1, y1] = P(from), [x2, y2] = P(to);
+    let s = '<path d="M' + f2(x1) + ' ' + f2(y1) + ' A' + r + ' ' + r + ' 0 0 ' + (dir > 0 ? 1 : 0) + ' ' + f2(x2) + ' ' + f2(y2) + '" fill="none" stroke-width="1"/>';
+    for (let i = 0; i < n; i++) {
+      const t = from + (to - from) * (i / (n - 1));
+      const [x, y] = P(t);
+      const along = dir > 0 ? t + 180 : t; // 枝の伸びる向き（leafPath の rot）
+      s += leafPath(x, y, len, w, along - 38) + leafPath(x, y, len, w, along + 38);
+    }
+    return s;
+  }
+  // 菊（細い花びらが放射状に並ぶ）
+  function kiku(cx, cy, r, n) {
+    let s = '';
+    for (let i = 0; i < n; i++) {
+      s += '<ellipse cx="' + cx + '" cy="' + f2(cy - r * 0.58) + '" rx="' + f2(r * 0.075) + '" ry="' + f2(r * 0.42) + '" transform="rotate(' + f2(i * 360 / n) + ' ' + cx + ' ' + cy + ')" stroke-width="0"/>';
+      s += '<ellipse cx="' + cx + '" cy="' + f2(cy - r * 0.36) + '" rx="' + f2(r * 0.07) + '" ry="' + f2(r * 0.24) + '" transform="rotate(' + f2(i * 360 / n + 180 / n) + ' ' + cx + ' ' + cy + ')" stroke-width="0" fill-opacity=".85"/>';
+    }
+    return s + '<circle cx="' + cx + '" cy="' + cy + '" r="' + f2(r * 0.22) + '" stroke-width="0"/>';
+  }
+
+  const JPY_ALT = {
+    // 1円 表: 若木・日本国・一円
+    1: { metal: 'aluminium', matte: true, art(m) {
+      const t = top('日本国', 9, JP, 4), b = bottom('一円', 9.5, JP, 6);
+      let tree = '<path d="M50 74 C49 64 51.5 52 50 30" fill="none" stroke-width="2"/>' +
+        '<path d="M50 60 C45 56 41 50 40 44" fill="none" stroke-width="1.3"/><path d="M50 56 C55 52 59 47 60 41" fill="none" stroke-width="1.3"/>';
+      tree += leafPath(50, 64, 15, 6, -62) + leafPath(50, 64, 15, 6, 62) + leafPath(40, 45, 10, 4.2, -20) + leafPath(41, 50, 9, 3.8, -78) +
+        leafPath(60, 42, 10, 4.2, 22) + leafPath(59, 47, 9, 3.8, 80) + leafPath(50, 40, 9, 3.6, -30) + leafPath(50, 38, 9, 3.6, 30) + leafPath(50, 32, 8, 3.4, 0);
+      return { defs: t.def + b.def, body: emboss(t.use + b.use + tree, m) };
+    } },
+    // 5円 裏: 日本国（穴の上に弧状）・左右に小さな双葉・年号（下の弧）
+    5: { metal: 'brass', hole: 11.36, art(m) {
+      const t = arc('日 本 国', 30, 200, 340, true, 11, JP, 2), y = bottom('令和七年', 7.5, JP, 3, 42);
+      const sprout = (x) => '<path d="M' + x + ' 55 V49" stroke-width="1.1"/>' +
+        '<path d="M' + x + ' 49 C' + (x - 2) + ' 45 ' + (x - 6) + ' 45 ' + (x - 7) + ' 47 C' + (x - 5) + ' 50 ' + (x - 2) + ' 50 ' + x + ' 49Z" stroke-width="0"/>' +
+        '<path d="M' + x + ' 49 C' + (x + 2) + ' 45 ' + (x + 6) + ' 45 ' + (x + 7) + ' 47 C' + (x + 5) + ' 50 ' + (x + 2) + ' 50 ' + x + ' 49Z" stroke-width="0"/>';
+      return { defs: t.def + y.def, body: emboss(t.use + y.use + sprout(21) + sprout(79), m) };
+    } },
+    // 10円 裏: 常盤木（下でリボン結び）・大きな「10」・年号の帯
+    10: { metal: 'bronze', patina: true, art(m) {
+      const ring = laurelRing(35, 8, 110, 225, 7.5, 2.6) + laurelRing(35, 8, 70, -45, 7.5, 2.6) +
+        '<path d="M44 82 C46 79 48 79 50 81 C52 79 54 79 56 82 M50 81 L46 88 M50 81 L54 88" fill="none" stroke-width="1.2"/>';
+      const band = '<rect x="29" y="56" width="42" height="10" rx="2" fill="none" stroke-width="1.2"/>';
+      return { defs: '', body: emboss(ring + txt(50, 51, '10', 31, NUM, 'letter-spacing="-1.5"') + band + txt(50, 63.8, '令和七年', 6.8, JP, 'letter-spacing="1.5"'), m) };
+    } },
+    // 50円 表: 菊・日本国・五十円
+    50: { metal: 'cupro', hole: 9.52, reeded: true, art(m) {
+      const t = top('日本国', 8, JP, 4), b = bottom('五十円', 8, JP, 4);
+      const flowers = kiku(27, 58, 13, 30) + kiku(73, 54, 13, 30) +
+        leafPath(28, 44, 9, 3.4, -20) + leafPath(28, 44, 8, 3, -75) + leafPath(30, 44, 8, 3, 35) +
+        leafPath(72, 40, 9, 3.4, 20) + leafPath(72, 40, 8, 3, 75) + leafPath(70, 40, 8, 3, -35);
+      return { defs: t.def + b.def, body: emboss(t.use + b.use + flowers, m) };
+    } },
+    // 100円 表: 桜・日本国・百円
+    100: { metal: 'cupro', reeded: true, art(m) {
+      const t = top('日本国', 8.5, JP, 4), b = bottom('百円', 9.5, JP, 7);
+      const flowers = sakura(58, 38, 16, 8) + sakura(35, 56, 14, -14) + sakura(62, 67, 12, 30);
+      let stamens = '';
+      [[58, 38, 7], [35, 56, 6.2], [62, 67, 5.3]].forEach(([x, y, r]) => {
+        for (let i = 0; i < 10; i++) {
+          const a = i * 36 * Math.PI / 180;
+          stamens += '<path d="M' + x + ' ' + y + ' L' + f2(x + Math.cos(a) * r) + ' ' + f2(y + Math.sin(a) * r) + '" stroke-width=".35"/>';
+        }
+      });
+      return { defs: t.def + b.def, body: emboss(t.use + b.use + flowers, m) + engrave(stamens, m) };
+    } },
+    // 500円 表: 桐・日本国・五百円
+    500: { metal: 'nickel500', reeded: true, bicolor: true, art(m) {
+      let beads = '';
+      for (let i = 0; i < 72; i++) {
+        const a = i * 5 * Math.PI / 180;
+        beads += '<circle cx="' + f2(50 + Math.cos(a) * 42) + '" cy="' + f2(50 + Math.sin(a) * 42) + '" r=".8" stroke-width="0"/>';
+      }
+      let kiri =
+        '<path d="M50 54 C41 53 37 60 42 65 L50 73 L58 65 C63 60 59 53 50 54Z" stroke-width="0"/>' +
+        '<path d="M48 56 C40 52 32 55 32 62 L33 70 L40 65 C44 62 47 59 48 56Z" stroke-width="0"/>' +
+        '<path d="M52 56 C60 52 68 55 68 62 L67 70 L60 65 C56 62 53 59 52 56Z" stroke-width="0"/>' +
+        '<path d="M50 54 V29 M46 54 C44 46 41 40 37 35 M54 54 C56 46 59 40 63 35" fill="none" stroke-width="1"/>';
+      [[50, 30], [47.5, 34.5], [52.5, 34.5], [47, 40], [53, 40], [46.5, 45.5], [53.5, 45.5]].forEach(([x, y]) => (kiri += '<circle cx="' + x + '" cy="' + y + '" r="2.1" stroke-width="0"/>'));
+      [[37, 35], [36.5, 40.5], [40.5, 38.5], [40.5, 44], [44, 42.5]].forEach(([x, y]) => (kiri += '<circle cx="' + x + '" cy="' + y + '" r="1.9" stroke-width="0"/><circle cx="' + (100 - x) + '" cy="' + y + '" r="1.9" stroke-width="0"/>'));
+      const t = top('日本国', 7.5, JP, 4, 39.5), b = bottom('五百円', 7.5, JP, 4, 39.5);
+      const big = (x) => '<g transform="translate(50 51) scale(1.22) translate(-50 -51)">' + x + '</g>';
+      return { defs: t.def + b.def, body: emboss(beads + t.use + b.use + big(kiri), m) + engrave(big('<path d="M50 56 V71 M48 57 L36 66 M52 57 L64 66" stroke-width=".4"/>'), m) };
+    } },
+  };
+
+  const USD_ALT = {
+    // 1¢ 裏: 合衆国の盾と ONE CENT の帯
+    1: { metal: 'copper', art(m) {
+      const t = top('UNITED STATES OF AMERICA', 6, US, .2, 43), b = arc('E PLURIBUS UNUM', 36, 222, 318, true, 4.6, US, .4);
+      let bars = '';
+      for (let i = 0; i < 13; i++) bars += '<rect x="' + f2(32.6 + i * 2.7) + '" y="44" width="1.5" height="' + f2(24 - Math.abs(i - 6) * 1.1) + '" stroke-width="0"/>';
+      const shield = '<path d="M30 30 H70 V42 H30Z" stroke-width="0"/>' +
+        '<path d="M30 42 H70 V58 C70 72 60 78 50 82 C40 78 30 72 30 58Z" fill="none" stroke-width="1.6"/>' + bars +
+        '<path d="M22 33 H78 L75 37.5 L78 42 H22 L25 37.5Z" stroke-width="0"/>';
+      const g = (x) => '<g transform="translate(50 56) scale(.86) translate(-50 -52)">' + x + '</g>';
+      return { defs: t.def + b.def, body: emboss(t.use + b.use + g(shield), m) +
+        g('<text x="50" y="39.6" font-family="' + US + '" font-size="5.6" font-weight="800" text-anchor="middle" fill="' + METAL[m][3] + '" letter-spacing="1">ONE CENT</text>') };
+    } },
+    // 5¢ 裏: モンティチェロ
+    5: { metal: 'silver', art(m) {
+      const t = top('E PLURIBUS UNUM', 6.2, US, .8, 43), b = bottom('UNITED STATES OF AMERICA', 5.6, US, .2, 43);
+      let cols = '';
+      for (let i = 0; i < 6; i++) cols += '<rect x="' + (37 + i * 5.4) + '" y="44" width="2.2" height="13" stroke-width="0"/>';
+      const house = '<path d="M33 44 L50 33 L67 44Z" stroke-width="0"/><path d="M43 33 Q50 23 57 33Z" stroke-width="0"/><rect x="48.6" y="22.5" width="2.8" height="3" stroke-width="0"/>' +
+        '<rect x="16" y="46" width="17" height="11" stroke-width="0"/><rect x="67" y="46" width="17" height="11" stroke-width="0"/>' +
+        '<rect x="14" y="57" width="72" height="3" stroke-width="0"/>' + cols +
+        txt(50, 67, 'MONTICELLO', 5.4, US, 'letter-spacing=".6"') + txt(50, 76, 'FIVE CENTS', 7, US, 'letter-spacing="1"');
+      return { defs: t.def + b.def, body: emboss(t.use + b.use + house, m) +
+        engrave('<path d="M20 49 V54 M24 49 V54 M28 49 V54 M72 49 V54 M76 49 V54 M80 49 V54" stroke-width=".6"/>', m) };
+    } },
+    // 10¢ 裏: トーチ・オリーブ・オーク
+    10: { metal: 'silver', reeded: true, art(m) {
+      const t = top('UNITED STATES OF AMERICA', 6, US, .2, 43), b = bottom('ONE DIME', 8, US, 2, 43);
+      const torch = '<rect x="48" y="30" width="4" height="40" stroke-width="0"/><path d="M45 30 H55 L53.5 26 H46.5Z" stroke-width="0"/>' +
+        '<path d="M50 13 C56 18 55 23 52 26 H48 C45 23 44 18 50 13Z" stroke-width="0"/>';
+      let olive = '', oak = '';
+      for (let i = 0; i < 5; i++) {
+        olive += leafPath(42 - i * 2.4, 66 - i * 7, 6, 1.8, -50 - i * 6) + leafPath(42 - i * 2.4, 66 - i * 7, 6, 1.8, -120 + i * 4);
+        oak += '<ellipse cx="' + f2(59 + i * 2.4) + '" cy="' + (64 - i * 7) + '" rx="2.6" ry="4" transform="rotate(' + (30 + i * 6) + ' ' + f2(59 + i * 2.4) + ' ' + (64 - i * 7) + ')" stroke-width="0"/>';
+      }
+      const stems = '<path d="M44 70 C38 58 36 44 33 34" fill="none" stroke-width="1"/><path d="M56 70 C62 58 64 44 67 34" fill="none" stroke-width="1"/>';
+      return { defs: t.def + b.def, body: emboss(t.use + b.use + torch + olive + oak + stems + txt(50, 79, 'E PLURIBUS UNUM', 4.4, US, 'letter-spacing=".3"'), m) };
+    } },
+    // 25¢ 裏: ワシ（翼を広げ、オリーブの枝の上にとまる）
+    25: { metal: 'silver', reeded: true, art(m) {
+      const t = top('UNITED STATES OF AMERICA', 6, US, .2, 43), b = bottom('QUARTER DOLLAR', 7, US, .8, 43);
+      const eagle =
+        '<path d="M50 30 c-3 0 -4 3 -3.5 5 l-1.6 2 l3 .2 c0 3 -1 6 -1 10 l-3 13 h12 l-3 -13 c0 -4 -1 -7 -1 -10 c2 -1 2 -3 1.5 -5 c-.5 -2 -1.5 -2.2 -3.5 -2.2z" stroke-width="0"/>' +
+        '<path d="M46 44 C38 37 27 33 18 37 C24 42 28 44 31 46 C26 47 23 49 21 52 C29 52 36 52 46 51Z" stroke-width="0"/>' +
+        '<path d="M54 44 C62 37 73 33 82 37 C76 42 72 44 69 46 C74 47 77 49 79 52 C71 52 64 52 54 51Z" stroke-width="0"/>' +
+        '<path d="M40 65 Q50 70 60 65" fill="none" stroke-width="1.4"/>' +
+        leafPath(40, 65, 7, 2, -120) + leafPath(44, 67, 7, 2, -150) + leafPath(56, 67, 7, 2, 150) + leafPath(60, 65, 7, 2, 120);
+      return { defs: t.def + b.def, body: emboss(t.use + b.use + eagle + txt(50, 28, 'E PLURIBUS UNUM', 4.6, US, 'letter-spacing=".4"'), m) +
+        engrave('<path d="M24 41 L44 46 M23 49 L44 49 M76 41 L56 46 M77 49 L56 49" stroke-width=".5"/>', m) };
+    } },
+  };
+
   function coinSVG(spec) {
     arcId = 0;
     const m = spec.metal;
@@ -333,10 +475,12 @@
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
   /** 額面の画像 URL を返す */
-  function moneyImage(code, v) {
-    const key = code + '-' + v;
+  /** 額面の画像 URL を返す（face: 'a' = 標準の面 / 'b' = もう片面） */
+  function moneyImage(code, v, face) {
+    const key = code + '-' + v + '-' + (face || 'a');
     if (cache[key]) return cache[key];
-    cache[key] = uri(coinSVG((code === 'JPY' ? JPY : USD)[v]));
+    const set = face === 'b' ? (code === 'JPY' ? JPY_ALT : USD_ALT) : (code === 'JPY' ? JPY : USD);
+    cache[key] = uri(coinSVG(set[v]));
     return cache[key];
   }
 
