@@ -1,6 +1,7 @@
 package jp.techgym.change;
 
 import android.os.Bundle;
+import android.view.View;
 import android.view.WindowManager;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -15,6 +16,10 @@ public class MainActivity extends BridgeActivity {
         // プレイ中に画面が暗くならないようにする
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         hideSystemBars();
+        // 画面の端を引っぱったときの伸び・光る効果を止める（画面が上下に動いて見えないように）
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().setOverScrollMode(View.OVER_SCROLL_NEVER);
+        }
     }
 
     @Override

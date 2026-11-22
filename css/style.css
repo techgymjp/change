@@ -515,3 +515,22 @@ body.has-banner { padding-bottom: 64px; }
 /* ムダ払い・アウト */
 .verdict.out .big { color: var(--warn); }
 .history tr.ng td:last-child { color: var(--warn); font-weight: 700; font-size: .75rem; }
+
+/* ---- 画面が上下に動かないように ---- */
+html, body { overscroll-behavior: none; }
+/* プレイ中は 1 画面に収めてスクロールさせない（がま口の大きさを画面の高さに合わせる） */
+body.playing { height: 100vh; height: 100dvh; overflow: hidden; touch-action: none; }
+body.playing .foot { display: none; }
+body.playing main { padding-bottom: 0; }
+body.playing .purse { width: min(88%, 320px, calc((100vh - 430px) / 1.06)); width: min(88%, 320px, calc((100dvh - 430px) / 1.06)); }
+body.playing .purse-card .row-head h2 { font-size: .95rem; }
+@media (max-height: 700px) {
+  body.playing .purse-foot .hint { display: none; }
+  body.playing .purse-foot { justify-content: flex-end; margin-top: 4px; }
+  body.playing .purse { width: min(88%, 320px, calc((100vh - 395px) / 1.06)); width: min(88%, 320px, calc((100dvh - 395px) / 1.06)); }
+}
+
+.foot-left { flex: 1; min-width: 0; }
+.foot-left .hint { display: block; }
+.purse-foot { align-items: flex-start; }
+.purse-foot .btn { flex: none; }
