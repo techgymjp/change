@@ -10,10 +10,10 @@
 
   // 金属の色: [ハイライト, 中間, 影, 刻印の影]
   const METAL = {
-    aluminium: ['#ffffff', '#dfe2e4', '#a9afb4', '#7f868c'],
+    aluminium: ['#ffffff', '#f1f2f2', '#cfd2d4', '#a3a8ac'],
     brass: ['#fff1b0', '#dcb64e', '#a57a1d', '#6e500c'],
     bronze: ['#f7c09a', '#bf6e3e', '#86411f', '#55270f'],
-    cupro: ['#ffffff', '#d3d7da', '#959ca2', '#666d73'],
+    cupro: ['#f7f9fb', '#c3c9ce', '#7f878f', '#4f575e'],
     nickelBrass: ['#fff4c4', '#d8bd6a', '#a08533', '#6a5418'],
     whiteClad: ['#fffdf2', '#e3dcc6', '#b2a888', '#7a705a'],
     nickel500: ['#ffffff', '#d9d8cf', '#a4a397', '#6c6b61'],
@@ -139,15 +139,12 @@
 
   // ---- 円 ----
   const JPY = {
-    // 1円 表: 若木
+    // 1円 裏: 大きな「1」と年号（アルミ: 白くてツヤがない）
     1: { metal: 'aluminium', matte: true, art(m) {
-      const t = top('日本国', 9, JP, 4), b = bottom('一円', 9.5, JP, 6);
-      let tree = '<path d="M50 74 C49 64 51.5 52 50 30" fill="none" stroke-width="2"/>' +
-        '<path d="M50 60 C45 56 41 50 40 44" fill="none" stroke-width="1.3"/><path d="M50 56 C55 52 59 47 60 41" fill="none" stroke-width="1.3"/>';
-      tree += leafPath(50, 64, 15, 6, -62) + leafPath(50, 64, 15, 6, 62) + leafPath(40, 45, 10, 4.2, -20) + leafPath(41, 50, 9, 3.8, -78) +
-        leafPath(60, 42, 10, 4.2, 22) + leafPath(59, 47, 9, 3.8, 80) + leafPath(50, 40, 9, 3.6, -30) + leafPath(50, 38, 9, 3.6, 30) + leafPath(50, 32, 8, 3.4, 0);
-      return { defs: t.def + b.def, body: emboss(t.use + b.use + tree, m) +
-        engrave('<path d="M50 64 L38 58" stroke-width=".4"/><path d="M50 64 L62 58" stroke-width=".4"/>', m) };
+      const one = '<path d="M46.8 22 H56 V67 H46.8 V32.5 L39.5 35.8 V30 Z" stroke-width="0" fill-opacity=".8"/>' +
+        '<path d="M51.4 24.5 V64.5 M41.5 32.8 L48.5 28.4" fill="none" stroke-width="1.6" stroke-linecap="round"/>';
+      const year = txt(50, 82, '令和七年', 7.8, JP, 'letter-spacing="3.5"');
+      return { defs: '', body: emboss(one + year, m) };
     } },
     // 5円 表: 稲穂・歯車・水、「五円」
     5: { metal: 'brass', hole: 11, art(m) {
@@ -291,7 +288,7 @@
       '<feGaussianBlur in="SourceAlpha" stdDeviation=".6" result="b"/>' +
       '<feDiffuseLighting in="b" surfaceScale="2.6" diffuseConstant="1.3" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="50"/></feDiffuseLighting>' +
       '<feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="lit"/>' +
-      '<feSpecularLighting in="b" surfaceScale="2.6" specularConstant=".6" specularExponent="34" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="50"/></feSpecularLighting>' +
+      '<feSpecularLighting in="b" surfaceScale="2.6" specularConstant="' + (spec.matte ? 0.15 : 0.75) + '" specularExponent="' + (spec.matte ? 12 : 34) + '" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="50"/></feSpecularLighting>' +
       '<feComposite in="s" in2="SourceAlpha" operator="in" result="s2"/>' +
       '<feComposite in="lit" in2="s2" operator="arithmetic" k2="1" k3="1" result="o"/>' +
       '<feComposite in="o" in2="SourceAlpha" operator="in" result="relief"/>' +
@@ -327,7 +324,7 @@
     if (spec.patina) body += '<circle cx="50" cy="50" r="47.6" fill="url(#pt)"/>';
     body += art.body;
     // 光の反射
-    body += '<ellipse cx="35" cy="27" rx="24" ry="12" fill="#fff" opacity=".16" transform="rotate(-32 35 27)"/>';
+    body += '<ellipse cx="35" cy="27" rx="24" ry="12" fill="#fff" opacity="' + (spec.matte ? 0.05 : 0.22) + '" transform="rotate(-32 35 27)"/>';
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs>' + defs + '</defs><g' + mask + '>' + body + '</g></svg>';
   }
 
