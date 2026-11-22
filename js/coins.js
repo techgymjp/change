@@ -16,6 +16,7 @@
     cupro: ['#ffffff', '#d3d7da', '#959ca2', '#666d73'],
     nickelBrass: ['#fff4c4', '#d8bd6a', '#a08533', '#6a5418'],
     whiteClad: ['#fffdf2', '#e3dcc6', '#b2a888', '#7a705a'],
+    nickel500: ['#ffffff', '#d9d8cf', '#a4a397', '#6c6b61'],
     copper: ['#ffc9a0', '#cf7743', '#8a3f1a', '#58250c'],
     silver: ['#ffffff', '#cdd2d6', '#8c9399', '#5f666c'],
   };
@@ -211,19 +212,35 @@
       return { defs: t.def + b.def, body: emboss(t.use + b.use + flowers, m) + engrave(stamens + centers.replace(/<circle/g, '<circle stroke-width=".5"'), m) };
     } },
     // 500円 表（2021年〜）: バイカラー・クラッド、桐
-    500: { metal: 'nickelBrass', reeded: true, bicolor: true, art(m) {
-      const t = top('日本国', 7.5, JP, 3.5, 44.5), b = bottom('五百円', 7.5, JP, 4, 44.5);
-      const fill = METAL.whiteClad[1];
-      let kiri =
-        '<path d="M50 52 C41 51 37 58 42 63 L50 71 L58 63 C63 58 59 51 50 52Z" stroke-width="0"/>' +
-        '<path d="M48 54 C40 50 32 53 32 60 L33 68 L40 63 C44 60 47 57 48 54Z" stroke-width="0"/>' +
-        '<path d="M52 54 C60 50 68 53 68 60 L67 68 L60 63 C56 60 53 57 52 54Z" stroke-width="0"/>' +
-        '<path d="M50 52 V27 M46 52 C44 44 41 38 37 33 M54 52 C56 44 59 38 63 33" fill="none" stroke-width="1"/>';
-      // 花: 中央 7・左右 5
-      [[50, 28], [47.5, 32.5], [52.5, 32.5], [47, 38], [53, 38], [46.5, 43.5], [53.5, 43.5]].forEach(([x, y]) => (kiri += '<circle cx="' + x + '" cy="' + y + '" r="2.1" stroke-width="0"/>'));
-      [[37, 33], [36.5, 38.5], [40.5, 36.5], [40.5, 42], [44, 40.5]].forEach(([x, y]) => (kiri += '<circle cx="' + x + '" cy="' + y + '" r="1.9" stroke-width="0"/>' + '<circle cx="' + (100 - x) + '" cy="' + y + '" r="1.9" stroke-width="0"/>'));
-      const veins = '<path d="M50 54 V69 M48 55 L36 64 M52 55 L64 64" stroke-width=".4"/>';
-      return { defs: t.def + b.def, body: emboss(t.use + b.use, m) + emboss(kiri, 'whiteClad', fill) + engrave(veins, 'whiteClad') };
+    // 500円 裏（2021年〜）: 全体は淡い銀色。「500」（0 の中に潜像の縦線）、上に竹、左右に橘、外周に点の輪
+    500: { metal: 'nickel500', reeded: true, bicolor: true, art(m) {
+      let beads = '';
+      for (let i = 0; i < 72; i++) {
+        const a = i * 5 * Math.PI / 180;
+        beads += '<circle cx="' + f2(50 + Math.cos(a) * 42) + '" cy="' + f2(50 + Math.sin(a) * 42) + '" r=".8" stroke-width="0"/>';
+      }
+      // 数字「500」: 5 は文字、0 は楕円の輪で形を揃える
+      const nums = '<text x="30.5" y="64.5" font-family="' + NUM + '" font-size="40" font-weight="900" text-anchor="middle" stroke-width="1.1" stroke-linejoin="round">5</text>' +
+        '<ellipse cx="51" cy="50" rx="8" ry="13.6" fill="none" stroke-width="5"/>' +
+        '<ellipse cx="71" cy="50" rx="8" ry="13.6" fill="none" stroke-width="5"/>';
+      let latent = '';
+      [51, 71].forEach((cx) => [-3.3, -1.1, 1.1, 3.3].forEach((dx) => {
+        const h = Math.sqrt(1 - (dx / 5.7) ** 2) * 10.4;
+        latent += '<path d="M' + f2(cx + dx) + ' ' + f2(50 - h) + ' V' + f2(50 + h) + '"/>';
+      }));
+      // 竹（上）
+      const bamboo = leafPath(50, 28, 12, 2.8, -78) + leafPath(50, 28, 12, 2.8, 78) + leafPath(50, 28, 10, 2.5, -40) + leafPath(50, 28, 10, 2.5, 40) +
+        leafPath(50, 28, 8, 2.2, 0);
+      // 橘（左右）: 縦の小枝に葉と実
+      const tachibana = (x, flip) => {
+        const s = flip ? -1 : 1;
+        return '<path d="M' + x + ' 60 C' + (x + s) + ' 54 ' + (x - s) + ' 46 ' + x + ' 40" fill="none" stroke-width=".9"/>' +
+          leafPath(x, 58, 7, 2.2, -38 * s) + leafPath(x, 54, 7, 2.2, 38 * s) + leafPath(x, 50, 6.5, 2, -38 * s) +
+          leafPath(x, 46, 6.5, 2, 38 * s) + leafPath(x, 42, 6, 1.9, -30 * s) + leafPath(x, 40, 5, 1.7, 0) +
+          '<circle cx="' + (x + 1.2 * s) + '" cy="62.5" r="2.3" stroke-width="0"/>';
+      };
+      const year = txt(50, 81, '令和七年', 7.2, JP, 'letter-spacing="3.2"');
+      return { defs: '', body: emboss(beads + nums + bamboo + tachibana(15.5, false) + tachibana(84.5, true) + year, m) + engrave(latent, m) };
     } },
   };
 
@@ -282,7 +299,6 @@
       '<feFlood flood-color="#000" flood-opacity=".3"/><feComposite in2="ob" operator="in" result="sh"/>' +
       '<feMerge><feMergeNode in="sh"/><feMergeNode in="relief"/></feMerge></filter>';
     defs += '<radialGradient id="soft"><stop offset="0" stop-color="' + c[1] + '" stop-opacity=".45"/><stop offset="1" stop-color="' + c[1] + '" stop-opacity="0"/></radialGradient>';
-    if (spec.bicolor) defs += grad('g2', 'whiteClad');
     if (spec.patina) defs += '<radialGradient id="pt" cx="70%" cy="75%" r="60%"><stop offset="0" stop-color="#4a2410" stop-opacity=".35"/><stop offset="1" stop-color="#4a2410" stop-opacity="0"/></radialGradient>';
     let mask = '';
     if (spec.hole) {
@@ -300,10 +316,9 @@
     // 縁（盛り上がったリム）
     body += '<g filter="url(#emb)"><circle cx="50" cy="50" r="46.4" fill="none" stroke="' + c[1] + '" stroke-width="2.6"/></g>';
     if (spec.bicolor) {
-      // 外周: ニッケル黄銅（金色） / 内側: 白銅・銅・白銅の 3 層（境目に銅色の線）
-      body += '<circle cx="50" cy="50" r="33.5" fill="' + METAL.copper[1] + '"/>' +
-        '<circle cx="50" cy="50" r="32.8" fill="url(#g2)"/>' +
-        '<circle cx="50" cy="50" r="32.8" fill="none" stroke="' + METAL.whiteClad[3] + '" stroke-opacity=".5" stroke-width=".5"/>';
+      // バイカラー・クラッド: 中心部がわずかに温かみのある色（見た目の差はごく小さい）
+      body += '<circle cx="50" cy="50" r="33" fill="#d8cfb0" fill-opacity=".18"/>' +
+        '<circle cx="50" cy="50" r="33" fill="none" stroke="#8a826a" stroke-opacity=".18" stroke-width=".4"/>';
     }
     if (spec.hole) {
       body += '<g filter="url(#emb)"><circle cx="50" cy="50" r="' + (spec.hole + 1.4) + '" fill="none" stroke="' + c[1] + '" stroke-width="2.6"/></g>';
