@@ -197,21 +197,21 @@
     50: { metal: 'cupro', hole: 9.5, reeded: true, art(m) {
       return { defs: '', body: emboss(txt(50, 86, '50', 26, NUM, 'letter-spacing="-1"') + txt(50, 30, '令和七年', 7.5, JP, 'letter-spacing="1"'), m) };
     } },
-    // 100円 表: 桜
+    // 100円 裏: 背の高い「100」（面取りしたような立体）と年号
     100: { metal: 'cupro', reeded: true, art(m) {
-      const t = top('日本国', 8.5, JP, 4), b = bottom('百円', 9.5, JP, 7);
-      const flowers = sakura(57, 40, 13, 8) + sakura(37, 55, 11, -14) + sakura(60, 64, 9.5, 30);
-      const centers = [[57, 40, 3], [37, 55, 2.6], [60, 64, 2.2]].map(([x, y, r]) => '<circle cx="' + x + '" cy="' + y + '" r="' + r + '"/>').join('');
-      let stamens = '';
-      [[57, 40, 6], [37, 55, 5], [60, 64, 4.3]].forEach(([x, y, r]) => {
-        for (let i = 0; i < 10; i++) {
-          const a = i * 36 * Math.PI / 180;
-          stamens += '<path d="M' + x + ' ' + y + ' L' + f2(x + Math.cos(a) * r) + ' ' + f2(y + Math.sin(a) * r) + '" stroke-width=".35"/>';
-        }
-      });
-      return { defs: t.def + b.def, body: emboss(t.use + b.use + flowers, m) + engrave(stamens + centers.replace(/<circle/g, '<circle stroke-width=".5"'), m) };
+      const rr = (x, y, w, h, r) => 'M' + (x + r) + ' ' + y + ' H' + (x + w - r) + ' A' + r + ' ' + r + ' 0 0 1 ' + (x + w) + ' ' + (y + r) +
+        ' V' + (y + h - r) + ' A' + r + ' ' + r + ' 0 0 1 ' + (x + w - r) + ' ' + (y + h) + ' H' + (x + r) + ' A' + r + ' ' + r + ' 0 0 1 ' + x + ' ' + (y + h - r) +
+        ' V' + (y + r) + ' A' + r + ' ' + r + ' 0 0 1 ' + (x + r) + ' ' + y + 'Z';
+      const zero = (x) => rr(x, 21, 18, 47, 8.6) + rr(x + 6.3, 28.5, 5.9, 32, 2.9);
+      const one = 'M32.5 21 H40.5 V62.6 L43.5 63.6 V68 H24.5 V63.6 L29.5 62.6 V31.2 L22.5 34.4 V29 Z';
+      // 低い層（字全体）＋高い層（字画の中央の稜線）で面取りの陰影を出す
+      const digits =
+        '<path d="' + one + zero(43.5) + zero(63) + '" fill-rule="evenodd" stroke-width="0" fill-opacity=".72"/>' +
+        '<path d="M36.5 24 V64.5 M27 65.8 H41.5 M24.5 31.5 L32 27.5" fill="none" stroke-width="1.8" stroke-linecap="round"/>' +
+        '<path d="' + rr(46.5, 24.4, 12, 40.2, 6) + rr(66, 24.4, 12, 40.2, 6) + '" fill="none" stroke-width="1.8"/>';
+      const year = txt(50, 82.5, '令和7年', 8, JP, 'letter-spacing="4.5"');
+      return { defs: '', body: emboss(digits + year, m) };
     } },
-    // 500円 表（2021年〜）: バイカラー・クラッド、桐
     // 500円 裏（2021年〜）: 全体は淡い銀色。「500」（0 の中に潜像の縦線）、上に竹、左右に橘、外周に点の輪
     500: { metal: 'nickel500', reeded: true, bicolor: true, art(m) {
       let beads = '';
