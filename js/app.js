@@ -127,7 +127,7 @@
   function pxPerMm() {
     const box = $('purse');
     const w = Math.min(box.clientWidth || 340, (box.clientHeight || 280) * 1.25);
-    return clamp((w / 360) * 2.75, 2.3, 3.4);
+    return clamp((w / 260) * 2.55, 2.6, 3.4);
   }
   function diameter(p) {
     return DIAMETER_MM[state.code][state.cur.denoms[p.i].v] * pxPerMm();

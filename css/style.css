@@ -252,7 +252,7 @@ button.coin:active, button.bill:active { transform: scale(.92); }
 .purse-card { padding-bottom: 12px; }
 /* がま口（正方形）: 布の本体 + 金色の口金 + 玉留め */
 .purse {
-  position: relative; width: min(82%, 290px); aspect-ratio: 1 / 1.06; margin: 18px auto 0;
+  position: relative; width: min(88%, 320px); aspect-ratio: 1 / 1.06; margin: 18px auto 0;
   border-radius: 14px 14px 30% 30% / 14px 14px 22% 22%; padding: 30px 16px 20px;
   background:
     radial-gradient(circle at 30% 25%, #ffffff22, transparent 45%),
