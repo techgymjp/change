@@ -21,10 +21,10 @@ window.Ads = (() => {
         rewarded: 'ca-app-pub-3940256099942544/5224354917',
         banner: 'ca-app-pub-3940256099942544/6300978111',
       },
-      // 本番の広告ユニット(AdMob の Android アプリ「お釣りピッタリ」)。届くまでは空(本番ビルドでは出さない)
+      // 本番の広告ユニット(AdMob の Android アプリ「お釣りピッタリ」)
       production: {
         interstitial: 'ca-app-pub-6411535997477460/8930801820',
-        rewarded: '',
+        rewarded: 'ca-app-pub-6411535997477460/6304638480',
         banner: 'ca-app-pub-6411535997477460/3361238381',
       },
     },
