@@ -147,7 +147,7 @@
       return { defs: '', body: emboss(one + year, m) };
     } },
     // 5円 表: 稲穂・歯車・水、「五円」
-    5: { metal: 'brass', hole: 11, art(m) {
+    5: { metal: 'brass', hole: 11.36 /* 孔径 5mm ÷ 直径 22mm */, art(m) {
       let gear = '<circle cx="50" cy="50" r="15" fill="none" stroke-width="3"/>';
       for (let i = 0; i < 18; i++) gear += '<rect x="-1.7" y="-19.6" width="3.4" height="4.4" transform="translate(50 50) rotate(' + i * 20 + ')" stroke-width="0"/>';
       // 稲穂: 左下から左側を上り、上で右へ垂れ下がる
@@ -191,7 +191,7 @@
       return { defs: t.def + b.def, body: emboss(t.use + b.use + hall, m) + engrave(cols, m) };
     } },
     // 50円 裏: 穴・「50」・年号
-    50: { metal: 'cupro', hole: 9.5, reeded: true, art(m) {
+    50: { metal: 'cupro', hole: 9.52 /* 孔径 4mm ÷ 直径 21mm */, reeded: true, art(m) {
       return { defs: '', body: emboss(txt(50, 86, '50', 26, NUM, 'letter-spacing="-1"') + txt(50, 30, '令和七年', 7.5, JP, 'letter-spacing="1"'), m) };
     } },
     // 100円 裏: 背の高い「100」（面取りしたような立体）と年号

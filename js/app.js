@@ -101,6 +101,11 @@
     JPY: { 1: 20, 5: 22, 10: 23.5, 50: 21, 100: 22.6, 500: 26.5 },
     USD: { 1: 19.05, 5: 21.21, 10: 17.91, 25: 24.26 },
   };
+  // 厚さ（mm）。影の落ち方に使う
+  const THICK_MM = {
+    JPY: { 1: 1.5, 5: 1.5, 10: 1.5, 50: 1.7, 100: 1.7, 500: 1.8 },
+    USD: { 1: 1.52, 5: 1.95, 10: 1.35, 25: 1.75 },
+  };
   let pieceSeq = 0;
   let zTop = 1;
   let drag = null;
@@ -203,6 +208,7 @@
       el.style.zIndex = p.z;
       el.style.setProperty('--rot', p.rot + 'deg');
       el.style.setProperty('--shade', Math.max(0.55, 1 - over * 0.13));
+      el.style.setProperty('--t', (THICK_MM[state.code][state.cur.denoms[p.i].v] * pxPerMm()).toFixed(1) + 'px');
     });
   }
 
@@ -576,10 +582,10 @@
     });
   }
   decoPile($('heroPile'), [
-    ['JPY', 100, 30, 62, 30, 20], ['JPY', 1, 52, 70, 26, 80], ['JPY', 10, 70, 58, 31, -30], ['JPY', 5, 44, 48, 29, 140],
-    ['JPY', 50, 24, 38, 27, 200], ['JPY', 1, 62, 34, 26, 10], ['JPY', 500, 50, 60, 35, -12], ['JPY', 10, 34, 74, 31, 60], ['JPY', 1, 76, 76, 26, 300],
+    ['JPY', 100, 30, 62, 29.4, 20], ['JPY', 1, 52, 70, 26, 80], ['JPY', 10, 70, 58, 30.6, -30], ['JPY', 5, 44, 48, 28.6, 140],
+    ['JPY', 50, 24, 38, 27.3, 200], ['JPY', 1, 62, 34, 26, 10], ['JPY', 500, 50, 60, 34.5, -12], ['JPY', 10, 34, 74, 30.6, 60], ['JPY', 1, 76, 76, 26, 300],
   ]);
-  decoPile($('howPile'), [['JPY', 10, 36, 56, 46, 30], ['JPY', 1, 62, 46, 40, 100], ['JPY', 100, 48, 40, 44, -20], ['JPY', 50, 66, 66, 42, 10]]);
+  decoPile($('howPile'), [['JPY', 10, 36, 56, 45.9, 30], ['JPY', 1, 62, 46, 39.0, 100], ['JPY', 100, 48, 40, 44.1, -20], ['JPY', 50, 66, 66, 41.0, 10]]);
   $('btnRetry').addEventListener('click', () => startGame(state.code, state.seed));
   $('btnHome').addEventListener('click', () => { renderRecords(); show('screenStart'); });
   $('btnShare').addEventListener('click', () => {
