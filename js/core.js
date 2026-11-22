@@ -109,6 +109,18 @@
     return out;
   }
 
+  /**
+   * 払い方のルール違反を調べる
+   *  'all'   … 財布の硬貨を全部出した（即アウト）
+   *  'waste' … 出した硬貨と同じ種類がお釣りに入っている（ムダ払い）
+   *  null    … 問題なし
+   */
+  function violation(wallet, pay, change) {
+    if (pay.every((c, i) => c === wallet[i])) return 'all';
+    if (change && pay.some((c, i) => c > 0 && change[i] > 0)) return 'waste';
+    return null;
+  }
+
   /** 支払い結果: 支払い後の財布・お釣り・硬貨枚数 */
   function settle(wallet, pay, price, cur) {
     const paid = total(pay, cur);
@@ -139,6 +151,7 @@
       if (i < 0) {
         if (paid < price) return;
         const r = settle(wallet, pay, price, cur);
+        if (violation(wallet, pay, r.change)) return; // ルールを守った払い方だけを候補にする
         const key = [r.coinsAfter, pieceCount(pay), pieceCount(r.after)];
         if (!bestKey || key[0] < bestKey[0] || (key[0] === bestKey[0] && (key[1] < bestKey[1] || (key[1] === bestKey[1] && key[2] < bestKey[2])))) {
           bestKey = key;
@@ -195,7 +208,8 @@
       const coins = coinCount(wallet, cur);
       if (coins < 4) continue;
       const sum = total(wallet, cur);
-      const hi = Math.min(sum, lv.priceMax);
+      // 財布には必ず値段より多いお金を入れる（全部出さなくても払えるように）
+      const hi = Math.min(sum - 1, lv.priceMax);
       if (hi < lv.priceMin) continue;
       const can = reachableSums(wallet, cur);
 
@@ -240,6 +254,7 @@
     pieceCount,
     makeChange,
     settle,
+    violation,
     bestPayment,
     reachableSums,
     generateRound,

@@ -13,7 +13,7 @@
   // Android アプリ(Capacitor)で動いているか。Web 版では Capacitor がないので何もしない
   const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   const plugin = (name) => (NATIVE && window.Capacitor.Plugins ? window.Capacitor.Plugins[name] : null);
-  const WEB_URL = 'https://techgymjp.github.io/change/'; // アプリからシェアするときの URL
+  const SHARE_URL = 'https://techgym.jp/column/claude-code-game-change/'; // シェアボタンで送る URL
   const REDO_MAX = 5;      // リワード広告の「やり直し」は 1 ゲーム 5 回まで
   const REDO_DELAY = 2500; // 失敗の結果を見届けてから案内を出す
   const REDO_WAIT = 6;     // 案内は 6 秒で自動的に消して先へ進む
@@ -393,6 +393,10 @@
     setTimeout(() => slot.classList.remove('eat'), 400);
     p.where = 'machine';
     S.insert(state.code, state.cur.denoms[p.i].v);
+    // がま口の硬貨を全部入れたら即アウト
+    if (!state.pieces.some((q) => q.where === 'purse')) {
+      setTimeout(() => { S.reject(); pay(true); }, 350);
+    }
     setTimeout(() => {
       el.remove();
       el.classList.remove('inserting');
@@ -451,14 +455,24 @@
     toastTimer = setTimeout(() => (t.hidden = true), 1600);
   }
 
-  function pay() {
+  // 会計を終える。out=true は「がま口の硬貨を全部入れた」ときの即アウト
+  function pay(out) {
+    if (!$('modal').hidden || state.paused) return;
     const cur = state.cur;
     const r = state.rounds[state.index];
-    const res = C.settle(state.wallet, state.tray, r.price, cur);
-    if (!res) return;
+    let res = C.settle(state.wallet, state.tray, r.price, cur);
+    if (!res && out !== true) return;
+    // 全部入れたら即アウト（お金が足りていてもいなくても）
+    if (out === true) {
+      const before = C.coinCount(state.wallet, cur);
+      res = { paid: C.total(state.tray, cur), change: C.zeros(cur), changeAmount: 0, after: state.wallet.slice(), coinsBefore: before, coinsAfter: before };
+    }
+    const rule = out === true ? 'all' : C.violation(state.wallet, state.tray, res.change);
     const best = r.best;
-    const gained = res.coinsBefore - res.coinsAfter;
-    const isPerfect = res.coinsAfter <= best.coinsAfter;
+    // アウトとムダ払いは「減らした枚数 0」（悪い払い方でマイナスならそのまま）、パーフェクトにはならない
+    const actual = res.coinsBefore - res.coinsAfter;
+    const gained = rule ? Math.min(0, actual) : actual;
+    const isPerfect = !rule && res.coinsAfter <= best.coinsAfter;
     state.score += gained;
     if (isPerfect) state.perfect++;
     // この会計にかかった時間（結果表示中は数えない）
@@ -467,11 +481,14 @@
     state.elapsed += sec;
     state.roundStart = null;
     updateClock();
-    state.history.push({ price: r.price, before: res.coinsBefore, after: res.coinsAfter, best: best.coinsAfter, perfect: isPerfect, sec });
+    state.history.push({ price: r.price, before: res.coinsBefore, after: res.coinsBefore - gained, best: best.coinsAfter, perfect: isPerfect, sec, rule });
     state.lastRound = { gained, isPerfect, sec };
 
     const red = $('mReduced');
-    if (gained > 0) {
+    if (rule) {
+      red.innerHTML = '<span class="num">' + (gained < 0 ? -gained : 0) + '</span><span class="unit">' + t(gained < 0 ? 'redDown' : 'redSame') + '</span>';
+      red.className = 'reduced down';
+    } else if (gained > 0) {
       red.innerHTML = '<span class="num">' + gained + '</span><span class="unit">' + t('redUp') + '</span>';
       red.className = 'reduced up';
     } else if (gained === 0) {
@@ -482,7 +499,15 @@
       red.className = 'reduced down';
     }
     const v = $('verdict');
-    if (isPerfect) {
+    if (rule === 'all') {
+      v.innerHTML = '<span class="big">' + t('vOut') + '</span><span>' + t('vOutSub') + '</span>';
+      v.className = 'verdict out';
+    } else if (rule === 'waste') {
+      const back = [];
+      cur.denoms.forEach((d, i) => { if (state.tray[i] > 0 && res.change[i] > 0) back.push(I.coinName(cur, d.v, d.name)); });
+      v.innerHTML = '<span class="big">' + t('vWaste') + '</span><span>' + t('vWasteSub', { list: back.join(I.lang() === 'en' ? ', ' : '・') }) + '</span>';
+      v.className = 'verdict out';
+    } else if (isPerfect) {
       v.innerHTML = '<span class="big">' + t('vPerfect') + '</span><span>' + t('vPerfectSub') + '</span>';
       v.className = 'verdict perfect';
     } else if (gained > 0) {
@@ -496,7 +521,7 @@
     $('mChange').textContent = money(res.changeAmount);
     $('mChangeItems').replaceWith(Object.assign(moneyLine(cur, res.change), { id: 'mChangeItems' }));
     $('mBefore').textContent = t('coinsN', { n: res.coinsBefore });
-    $('mAfter').textContent = t('coinsN', { n: res.coinsAfter });
+    $('mAfter').textContent = t('coinsN', { n: res.coinsBefore - gained });
     $('mBest').textContent = t('coinsN', { n: best.coinsAfter });
     $('mBestWay').innerHTML = isPerfect
       ? ''
@@ -665,7 +690,7 @@
 
     const tbl = $('history');
     tbl.innerHTML = '<tr><th>' + ['thNo', 'thPrice', 'thBefore', 'thAfter', 'thBest', 'thTime'].map((k) => t(k)).join('</th><th>') + '</th><th></th></tr>' +
-      state.history.map((h, i) => '<tr class="' + (h.perfect ? 'p' : '') + '"><td>' + (i + 1) + '</td><td>' + money(h.price) + '</td><td>' + h.before + '</td><td>' + h.after + '</td><td>' + h.best + '</td><td>' + t('sec', { n: h.sec.toFixed(1) }) + '</td><td>' + (h.perfect ? '★' : '') + '</td></tr>').join('');
+      state.history.map((h, i) => '<tr class="' + (h.perfect ? 'p' : h.rule ? 'ng' : '') + '"><td>' + (i + 1) + '</td><td>' + money(h.price) + '</td><td>' + h.before + '</td><td>' + h.after + '</td><td>' + h.best + '</td><td>' + t('sec', { n: h.sec.toFixed(1) }) + '</td><td>' + (h.perfect ? '★' : h.rule === 'all' ? t('markOut') : h.rule ? t('markNg') : '') + '</td></tr>').join('');
     show('screenEnd');
   }
 
@@ -682,14 +707,9 @@
   }
 
   // ---------- シェア ----------
+  // シェアするのは紹介記事の URL（Web 版・アプリとも）
   function shareUrl() {
-    const u = new URL(NATIVE ? WEB_URL : location.href);
-    u.search = '';
-    u.hash = '';
-    u.searchParams.set('cur', state.code);
-    u.searchParams.set('code', state.seed);
-    if (I.lang() === 'en') u.searchParams.set('lang', 'en');
-    return u.toString();
+    return SHARE_URL;
   }
   function shareText() {
     const marks = state.history.map((h) => (h.perfect ? '🟩' : h.after < h.before ? '🟨' : '⬜')).join('');
@@ -785,7 +805,7 @@
   }
   $('redoWatch').addEventListener('click', watchRedo);
   $('redoSkip').addEventListener('click', skipRedo);
-  $('btnPay').addEventListener('click', pay);
+  $('btnPay').addEventListener('click', () => pay());
   $('btnReturn').addEventListener('click', () => returnPieces(state.pieces.filter((p) => p.where === 'machine')));
   $('btnShake').addEventListener('click', shakePurse);
   window.addEventListener('resize', () => { if (state.cur && !$('screenGame').hidden) layoutPurse(); });

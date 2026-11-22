@@ -511,3 +511,7 @@ body.has-banner { padding-bottom: 64px; }
 .redo-watch { width: 100%; background: #1f6feb; color: #fff; font-size: .95rem; }
 .redo-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; color: var(--muted); }
 .redo-skip { font: inherit; font-size: .8rem; background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; }
+
+/* ムダ払い・アウト */
+.verdict.out .big { color: var(--warn); }
+.history tr.ng td:last-child { color: var(--warn); font-weight: 700; font-size: .75rem; }
