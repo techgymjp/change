@@ -6,6 +6,9 @@
   const S = window.OtsuriSound;
   const ART = window.OtsuriArt;
   const BGM = window.OtsuriBGM;
+  const I = window.OtsuriI18n;
+  const t = I.t;
+  const money = (v) => I.money(state.cur, v);
   const AUTO_MS = 6000; // 結果表示から自動で次の会計に進むまでの時間
   let autoTimer = null;
 
@@ -48,22 +51,23 @@
     for (let i = cur.denoms.length - 1; i >= 0; i--) {
       for (let k = 0; k < counts[i]; k++) box.appendChild(moneyEl(cur, i));
     }
-    if (!box.children.length) box.innerHTML = '<span class="none">なし</span>';
+    if (!box.children.length) box.innerHTML = '<span class="none">' + t('none') + '</span>';
     return box;
   }
 
   function describe(cur, counts) {
     const parts = [];
     for (let i = cur.denoms.length - 1; i >= 0; i--) {
-      if (counts[i]) parts.push(cur.denoms[i].name + '×' + counts[i]);
+      if (counts[i]) parts.push(I.coinName(cur, cur.denoms[i].v, cur.denoms[i].name) + '×' + counts[i]);
     }
-    return parts.join('、') || 'なし';
+    return parts.join(I.lang() === 'en' ? ', ' : '、') || t('none');
   }
 
   // ---------- 画面切り替え ----------
   function show(id) {
     ['screenStart', 'screenHowto', 'screenGame', 'screenEnd'].forEach((s) => ($(s).hidden = s !== id));
     $('hud').hidden = id !== 'screenGame';
+    document.body.classList.toggle('playing', id === 'screenGame');
     window.scrollTo(0, 0);
   }
 
@@ -84,6 +88,8 @@
     state.score = 0;
     state.perfect = 0;
     state.history = [];
+    state.elapsed = 0;
+    state.roundStart = null;
     document.body.dataset.cur = code.toLowerCase();
     try {
       const url = new URL(location.href);
@@ -178,11 +184,12 @@
       createPieceEl(p);
       $('purse').appendChild(p.el);
     });
-    $('price').textContent = state.cur.format(r.price);
+    $('price').textContent = money(r.price);
     $('price').classList.remove('pop');
     void $('price').offsetWidth;
     $('price').classList.add('pop');
     $('purseOuter').classList.remove('shake');
+    state.roundStart = performance.now();
     render();
   }
 
@@ -226,13 +233,13 @@
 
     layoutPurse();
     $('walletCoins').textContent = C.coinCount(remain, cur);
-    $('walletSum').textContent = cur.format(C.total(remain, cur));
+    $('walletSum').textContent = money(C.total(remain, cur));
     // 中身メモ
     const memo = [];
     for (let i = cur.denoms.length - 1; i >= 0; i--) {
-      if (remain[i]) memo.push('<span class="chip"><img src="' + ART.moneyImage(cur.code, cur.denoms[i].v) + '" alt="">' + (cur.code === 'JPY' ? cur.format(cur.denoms[i].v) : cur.denoms[i].label) + ' ×' + remain[i] + '</span>');
+      if (remain[i]) memo.push('<span class="chip"><img src="' + ART.moneyImage(cur.code, cur.denoms[i].v) + '" alt="">' + (cur.code === 'JPY' ? money(cur.denoms[i].v) : cur.denoms[i].label) + ' ×' + remain[i] + '</span>');
     }
-    $('memo').innerHTML = '<small>中身：</small>' + (memo.join('') || 'からっぽ');
+    $('memo').innerHTML = '<small>' + t('memo') + '</small>' + (memo.join('') || t('empty'));
 
     // 投入したお金
     const ins = $('inserted');
@@ -242,25 +249,25 @@
       b.type = 'button';
       b.className = 'ins-coin';
       b.innerHTML = '<img src="' + ART.moneyImage(cur.code, cur.denoms[p.i].v, p.face) + '" alt="">';
-      b.title = cur.denoms[p.i].name + 'を返却';
+      b.title = t('returnOne', { name: I.coinName(cur, cur.denoms[p.i].v, cur.denoms[p.i].name) });
       b.addEventListener('click', () => returnPieces([p]));
       ins.appendChild(b);
     });
 
     const paid = C.total(state.tray, cur);
-    $('paidSum').textContent = cur.format(paid);
+    $('paidSum').textContent = money(paid);
     const st = $('status');
     if (paid === 0) {
-      st.textContent = 'お金を入れてください';
+      st.textContent = t('stInsert');
       st.className = 'lcd-row msg';
     } else if (paid < r.price) {
-      st.textContent = '不足 ' + cur.format(r.price - paid);
+      st.textContent = t('stShort', { v: money(r.price - paid) });
       st.className = 'lcd-row msg short';
     } else if (paid === r.price) {
-      st.textContent = 'ピッタリ — 精算を押してください';
+      st.textContent = t('stExact');
       st.className = 'lcd-row msg ok';
     } else {
-      st.textContent = 'お釣り ' + cur.format(paid - r.price);
+      st.textContent = t('stChange', { v: money(paid - r.price) });
       st.className = 'lcd-row msg ok';
     }
     $('btnPay').disabled = paid < r.price;
@@ -325,7 +332,7 @@
       void el.offsetWidth;
       el.classList.add('nudge');
       S.money(state.code, state.cur.denoms[p.i].v, 0, true);
-      toast('つかんだまま投入口へ運ぼう');
+      toast(t('dragHint'));
       return;
     }
     el.classList.remove('dragging');
@@ -438,41 +445,46 @@
     const isPerfect = res.coinsAfter <= best.coinsAfter;
     state.score += gained;
     if (isPerfect) state.perfect++;
-    state.history.push({ price: r.price, before: res.coinsBefore, after: res.coinsAfter, best: best.coinsAfter, perfect: isPerfect });
+    // この会計にかかった時間（結果表示中は数えない）
+    const sec = state.roundStart ? (performance.now() - state.roundStart) / 1000 : 0;
+    state.elapsed += sec;
+    state.roundStart = null;
+    updateClock();
+    state.history.push({ price: r.price, before: res.coinsBefore, after: res.coinsAfter, best: best.coinsAfter, perfect: isPerfect, sec });
 
     const red = $('mReduced');
     if (gained > 0) {
-      red.innerHTML = '<span class="num">' + gained + '</span><span class="unit">枚 減った！</span>';
+      red.innerHTML = '<span class="num">' + gained + '</span><span class="unit">' + t('redUp') + '</span>';
       red.className = 'reduced up';
     } else if (gained === 0) {
-      red.innerHTML = '<span class="num">±0</span><span class="unit">枚（変わらず）</span>';
+      red.innerHTML = '<span class="num">±0</span><span class="unit">' + t('redSame') + '</span>';
       red.className = 'reduced same';
     } else {
-      red.innerHTML = '<span class="num">' + -gained + '</span><span class="unit">枚 増えた…</span>';
+      red.innerHTML = '<span class="num">' + -gained + '</span><span class="unit">' + t('redDown') + '</span>';
       red.className = 'reduced down';
     }
     const v = $('verdict');
     if (isPerfect) {
-      v.innerHTML = '<span class="big">パーフェクト！</span><span>これ以上は減らせない最少枚数です</span>';
+      v.innerHTML = '<span class="big">' + t('vPerfect') + '</span><span>' + t('vPerfectSub') + '</span>';
       v.className = 'verdict perfect';
     } else if (gained > 0) {
-      v.innerHTML = '<span class="big">おしい！</span><span>あと ' + (res.coinsAfter - best.coinsAfter) + ' 枚減らせました</span>';
+      v.innerHTML = '<span class="big">' + t('vGood') + '</span><span>' + t('vGoodSub', { n: res.coinsAfter - best.coinsAfter }) + '</span>';
       v.className = 'verdict good';
     } else {
-      v.innerHTML = '<span class="big">ざんねん</span><span>最少は ' + best.coinsAfter + ' 枚でした</span>';
+      v.innerHTML = '<span class="big">' + t('vBad') + '</span><span>' + t('vBadSub', { n: best.coinsAfter }) + '</span>';
       v.className = 'verdict bad';
     }
-    $('mPaid').textContent = cur.format(res.paid);
-    $('mChange').textContent = cur.format(res.changeAmount);
+    $('mPaid').textContent = money(res.paid);
+    $('mChange').textContent = money(res.changeAmount);
     $('mChangeItems').replaceWith(Object.assign(moneyLine(cur, res.change), { id: 'mChangeItems' }));
-    $('mBefore').textContent = res.coinsBefore + '枚';
-    $('mAfter').textContent = res.coinsAfter + '枚';
-    $('mBest').textContent = best.coinsAfter + '枚';
+    $('mBefore').textContent = t('coinsN', { n: res.coinsBefore });
+    $('mAfter').textContent = t('coinsN', { n: res.coinsAfter });
+    $('mBest').textContent = t('coinsN', { n: best.coinsAfter });
     $('mBestWay').innerHTML = isPerfect
       ? ''
-      : '<small>最少になる出し方の例：</small><div>' + cur.format(best.paid) + '（' + describe(cur, best.pay) + '）→ お釣り ' + cur.format(best.changeAmount) + '</div>';
+      : '<small>' + t('bestWay') + '</small><div>' + t('bestWayLine', { paid: money(best.paid), list: describe(cur, best.pay), change: money(best.changeAmount) }) + '</div>';
     const last = state.index + 1 >= C.ROUNDS;
-    $('nextLabel').textContent = last ? '最終結果を見る ▶' : '次の会計へ ▶（' + (state.index + 2) + '/' + C.ROUNDS + '）';
+    $('nextLabel').textContent = last ? t('nextLast') : t('next', { n: state.index + 2, total: C.ROUNDS });
     $('modal').hidden = false;
     $('btnNext').focus();
 
@@ -493,7 +505,7 @@
     void bar.offsetWidth;
     bar.style.transition = 'width ' + ms + 'ms linear';
     bar.style.width = '100%';
-    $('autoNote').textContent = '自動で次の会計に進みます（タップで一時停止）';
+    $('autoNote').textContent = t('autoNote');
     autoTimer = setTimeout(next, ms);
   }
   function stopAuto() {
@@ -503,7 +515,7 @@
       const bar = $('nextBar');
       bar.style.transition = 'none';
       bar.style.width = '0%';
-      $('autoNote').textContent = '一時停止中 — ボタンで次の会計へ';
+      $('autoNote').textContent = t('paused');
     }
   }
 
@@ -515,40 +527,99 @@
     startRound();
   }
 
+  // ---------- 時間 ----------
+  function fmtTime(sec) {
+    sec = Math.floor(sec);
+    const m = Math.floor(sec / 60), s = sec % 60;
+    return m + ':' + String(s).padStart(2, '0');
+  }
+  function currentElapsed() {
+    return state.elapsed + (state.roundStart ? (performance.now() - state.roundStart) / 1000 : 0);
+  }
+  function updateClock() {
+    $('hudTime').textContent = fmtTime(currentElapsed());
+  }
+  setInterval(() => { if (state.cur && !$('screenGame').hidden) updateClock(); }, 250);
+
+  /**
+   * 総合評価（1000 点満点）
+   *  硬貨 600: 減らした枚数 ÷ 最大で減らせた枚数
+   *  パーフェクト 200: 1 問 10 点
+   *  スピード 200: 1 問平均 10 秒以内で満点、60 秒で 0 点。適当に急いでも稼げないよう硬貨の達成率を掛ける
+   */
+  function evaluate(maxScore) {
+    const ratio = maxScore ? Math.max(0, state.score) / maxScore : 0;
+    const coins = Math.round(600 * Math.min(1, ratio));
+    const perfect = state.perfect * 10;
+    const avg = state.elapsed / C.ROUNDS;
+    const speedFactor = Math.max(0, Math.min(1, (60 - avg) / 50));
+    const speed = Math.round(200 * speedFactor * Math.min(1, ratio));
+    return { coins, perfect, speed, total: coins + perfect + speed, ratio, avg };
+  }
+
   function finish() {
     const maxScore = state.rounds.reduce((s, r) => s + (C.coinCount(r.wallet, state.cur) - r.best.coinsAfter), 0);
-    $('endScore').textContent = state.score;
-    $('endSub').textContent = '最大 ' + maxScore + ' 枚中 ／ パーフェクト ' + state.perfect + ' / ' + C.ROUNDS;
-    const ratio = maxScore ? state.score / maxScore : 0;
-    const rank = ratio >= 1 ? ['S', 'レジの達人！完璧です'] : ratio >= 0.85 ? ['A', '小銭マスター！'] : ratio >= 0.65 ? ['B', 'なかなかの腕前'] : ratio >= 0.4 ? ['C', 'もう少し工夫できそう'] : ['D', '財布が重いままかも…'];
+    const ev = evaluate(maxScore);
+    state.eval = ev;
+    $('endTotal').textContent = ev.total;
+    $('bdCoins').textContent = ev.coins;
+    $('bdCoinsSub').textContent = t('bdCoinsSub', { n: state.score, max: maxScore });
+    $('bdPerfect').textContent = ev.perfect;
+    $('bdPerfectSub').textContent = t('bdPerfectSub', { n: state.perfect, total: C.ROUNDS });
+    $('bdSpeed').textContent = ev.speed;
+    $('bdSpeedSub').textContent = t('bdSpeedSub', { time: fmtTime(state.elapsed), avg: ev.avg.toFixed(1) });
+    $('endSub').textContent = t('endSub', { n: state.score });
+    const tot = ev.total;
+    const r = tot >= 900 ? 'S' : tot >= 750 ? 'A' : tot >= 600 ? 'B' : tot >= 400 ? 'C' : 'D';
+    const rank = [r, t('rank' + r)];
+    state.rankLetter = r;
     $('endRank').innerHTML = '<span class="rank-badge r' + rank[0] + '">' + rank[0] + '</span>' + rank[1];
     $('endCode').textContent = state.seed;
-    $('endCur').textContent = state.cur.label + 'バージョン';
+    $('endCur').textContent = t('version', { cur: t('cur' + state.code) });
+    updateShareLinks();
 
     const key = 'otsuri-best-' + state.code;
     const prev = load(key);
-    if (!prev || state.score > prev.score) save(key, { score: state.score, perfect: state.perfect, max: maxScore });
+    if (!prev || !prev.total || ev.total > prev.total) save(key, { total: ev.total, score: state.score, perfect: state.perfect, time: Math.round(state.elapsed) });
 
     const tbl = $('history');
-    tbl.innerHTML = '<tr><th>#</th><th>値段</th><th>前</th><th>後</th><th>最少</th><th></th></tr>' +
-      state.history.map((h, i) => '<tr class="' + (h.perfect ? 'p' : '') + '"><td>' + (i + 1) + '</td><td>' + state.cur.format(h.price) + '</td><td>' + h.before + '</td><td>' + h.after + '</td><td>' + h.best + '</td><td>' + (h.perfect ? '★' : '') + '</td></tr>').join('');
+    tbl.innerHTML = '<tr><th>' + ['thNo', 'thPrice', 'thBefore', 'thAfter', 'thBest', 'thTime'].map((k) => t(k)).join('</th><th>') + '</th><th></th></tr>' +
+      state.history.map((h, i) => '<tr class="' + (h.perfect ? 'p' : '') + '"><td>' + (i + 1) + '</td><td>' + money(h.price) + '</td><td>' + h.before + '</td><td>' + h.after + '</td><td>' + h.best + '</td><td>' + t('sec', { n: h.sec.toFixed(1) }) + '</td><td>' + (h.perfect ? '★' : '') + '</td></tr>').join('');
     show('screenEnd');
   }
 
   function renderRecords() {
     const parts = ['JPY', 'USD'].map((code) => {
       const r = load('otsuri-best-' + code);
-      return r ? C.CURRENCIES[code].label + 'の自己ベスト：<b>' + r.score + '</b>枚（パーフェクト ' + r.perfect + '）' : null;
+      if (!r) return null;
+      const cur = t('cur' + code);
+      return r.total != null
+        ? t('record', { cur, total: r.total, n: r.score, p: r.perfect, time: fmtTime(r.time || 0) })
+        : t('recordOld', { cur, n: r.score });
     }).filter(Boolean);
     $('records').innerHTML = parts.join('<br>');
   }
 
+  // ---------- シェア ----------
+  function shareUrl() {
+    const u = new URL(location.href);
+    u.search = '';
+    u.hash = '';
+    u.searchParams.set('cur', state.code);
+    u.searchParams.set('code', state.seed);
+    if (I.lang() === 'en') u.searchParams.set('lang', 'en');
+    return u.toString();
+  }
   function shareText() {
     const marks = state.history.map((h) => (h.perfect ? '🟩' : h.after < h.before ? '🟨' : '⬜')).join('');
-    let url = location.href;
-    return 'お釣りピッタリ（' + state.cur.label + '）コード ' + state.seed + '\n' +
-      '硬貨を ' + state.score + ' 枚減らした！パーフェクト ' + state.perfect + '/' + C.ROUNDS + '\n' +
-      marks.slice(0, 10) + '\n' + marks.slice(10) + '\n' + url;
+    return t('shareText', { cur: t('cur' + state.code), total: state.eval.total, n: state.score, p: state.perfect, rounds: C.ROUNDS, time: fmtTime(state.elapsed), code: state.seed }) +
+      '\n' + marks.slice(0, 10) + '\n' + marks.slice(10);
+  }
+  function updateShareLinks() {
+    const text = shareText(), url = shareUrl();
+    $('btnShareX').href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(url);
+    $('btnShareLine').href = 'https://line.me/R/msg/text/?' + encodeURIComponent(text + '\n' + url);
+    $('btnShareNative').hidden = !navigator.share;
   }
 
   // ---------- イベント ----------
@@ -598,11 +669,34 @@
   $('btnRetry').addEventListener('click', () => startGame(state.code, state.seed));
   $('btnHome').addEventListener('click', () => { renderRecords(); show('screenStart'); });
   $('btnShare').addEventListener('click', () => {
-    const text = shareText();
-    const done = () => { $('btnShare').textContent = 'コピーしました！'; setTimeout(() => ($('btnShare').textContent = '結果をコピー'), 1500); };
-    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => prompt('コピーしてください', text));
-    else prompt('コピーしてください', text);
+    const text = shareText() + '\n' + shareUrl();
+    const done = () => { $('copyLabel').textContent = t('copied'); setTimeout(() => ($('copyLabel').textContent = t('copy')), 1500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => prompt(t('copyPrompt'), text));
+    else prompt(t('copyPrompt'), text);
   });
+  $('btnShareNative').addEventListener('click', () => {
+    if (!navigator.share) return;
+    navigator.share({ title: t('appTitle'), text: shareText(), url: shareUrl() }).catch(() => {});
+  });
+  // 言語切り替え
+  const langBtn = $('btnLang');
+  const syncLang = () => (langBtn.textContent = I.lang() === 'ja' ? 'EN' : 'JA');
+  langBtn.addEventListener('click', () => {
+    I.setLang(I.lang() === 'ja' ? 'en' : 'ja');
+    syncLang();
+    try {
+      const u = new URL(location.href);
+      u.searchParams.set('lang', I.lang());
+      history.replaceState(null, '', u);
+    } catch (e) { /* ignore */ }
+    renderRecords();
+    $('inserted').dataset.empty = t('insertedEmpty');
+    if (state.cur && !$('screenGame').hidden) { $('price').textContent = money(state.rounds[state.index].price); render(); }
+    if (!$('screenEnd').hidden) finish();
+  });
+  I.apply();
+  syncLang();
+  $('inserted').dataset.empty = t('insertedEmpty');
 
   // URL の ?code= でチャレンジコードを受け取る
   const params = new URLSearchParams(location.search);

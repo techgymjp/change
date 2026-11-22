@@ -348,7 +348,7 @@ button.coin:active, button.bill:active { transform: scale(.92); }
   .inserted { min-height: 26px; }
   .ins-coin { width: 26px; height: 26px; }
   .inserted-note { display: none; }
-  .inserted:empty::before { content: "投入したお金"; color: #5b636a; font-size: .7rem; align-self: center; }
+  .inserted:empty::before { content: attr(data-empty); color: #5b636a; font-size: .7rem; align-self: center; }
   .machine-btns { grid-area: btns; margin: 0; grid-template-columns: 1fr 1.3fr; gap: 6px; }
   .mbtn { padding: 8px 4px; font-size: .9rem; border-radius: 10px; }
   .purse-card { padding: 10px 10px 10px; }
@@ -449,3 +449,38 @@ button.coin:active, button.bill:active { transform: scale(.92); }
 .records b { color: var(--accent); }
 .start, .howto { max-width: 440px; margin: 0 auto; }
 .start .scene { height: auto; min-height: 210px; }
+
+/* ---- 時間・総合評価 ---- */
+.hud-time b { min-width: 3.2em; display: inline-block; }
+.breakdown { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 6px; }
+.breakdown div { background: var(--bg); border-radius: 12px; padding: 8px 4px; }
+.breakdown small { display: block; color: var(--muted); font-size: .75rem; }
+.breakdown b { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.breakdown i { font-style: normal; color: var(--muted); font-size: .75rem; }
+.breakdown span { display: block; color: var(--muted); font-size: .72rem; margin-top: 2px; }
+.end .rank { margin-bottom: 6px; }
+@media (max-width: 420px) {
+  .logo { font-size: .95rem; }
+  .hud { gap: 4px; }
+  .hud div { padding: 1px 5px; }
+}
+
+/* ---- 結果画面: シェア ---- */
+.share-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 8px; margin: 14px 0 10px; }
+.share-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px; border-radius: 12px;
+  font: inherit; font-weight: 700; font-size: .85rem; border: 0; cursor: pointer; text-decoration: none; color: #fff;
+}
+.share-btn[hidden] { display: none; }
+.share-btn .ico { font-size: 1.2rem; line-height: 1.2; font-weight: 900; }
+.share-btn.native { background: var(--accent); }
+.share-btn.x { background: #111; }
+.share-btn.line { background: #06c755; }
+.share-btn.copy { background: var(--card); color: var(--ink); border: 2px solid var(--line); }
+.end-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.end-actions .btn { padding: 12px 8px; }
+.lang-btn { font-size: .8rem !important; font-weight: 800; }
+
+/* プレイ中はロゴを隠して HUD とボタンを 1 行に収める */
+body.playing .logo { display: none; }
+body.playing .hud { margin-left: 0; margin-right: auto; }
