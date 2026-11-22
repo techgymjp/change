@@ -37,11 +37,9 @@
   /** 刻印（浮き出し）: 影 → ハイライト → 本体 の順に重ねる */
   function emboss(svg, m, fill) {
     const c = METAL[m];
-    return (
-      '<g transform="translate(.6 .8)" fill="' + c[3] + '" stroke="' + c[3] + '" opacity=".6">' + svg + '</g>' +
-      '<g transform="translate(-.45 -.55)" fill="#fff" stroke="#fff" opacity=".75">' + svg + '</g>' +
-      '<g fill="' + (fill || c[1]) + '" stroke="' + (fill || c[1]) + '">' + svg + '</g>'
-    );
+    // 刻印の形をそのまま「高さ」として扱い、左上からの光で陰影と金属の反射をつける（#emb フィルター）
+    const f = fill || c[1];
+    return '<g filter="url(#emb)" fill="' + f + '" stroke="' + f + '">' + svg + '</g>';
   }
   // 細い線の彫り（耳・目・葉脈など）
   function engrave(svg, m) {
@@ -99,25 +97,43 @@
     'C33.5 43 32.5 45 30 48.5 L28.6 51.6 C28.4 52.8 29.6 53.6 32.6 54 L32.6 56 C31.6 57 31.8 58.2 33 59 ' +
     'C32 60.4 32.8 62.2 34 63 C34.2 66 36.4 68.2 40 68.4 C42 70 42.4 76 41.4 86 Z';
   const BUST = 'M24 96 C30 88 38 85 41.4 84.5 L63 84.5 C70 85 78 89 82 96 Z';
+  // 透明度を高さとして使う: 低い層（顔全体）に高い層（髪・耳・頬・鼻筋）を重ねる
   function portrait(kind) {
-    let shape = HEAD + BUST;
-    let lines = 'M58 42 C63 42 64.5 51 58.6 53.5" /><path d="M37 40.6 L41 40.2" /><path d="M36 35 C42 30 50 30 56 34';
+    const lay = (d, o) => '<path d="' + d + '" stroke-width="0" fill-opacity="' + o + '"/>';
+    let shape = lay(HEAD + BUST, 0.72);
+    // 頬と額のふくらみ、鼻筋、耳
+    shape += '<ellipse cx="45" cy="51" rx="10" ry="9" stroke-width="0" fill="url(#soft)"/>' +
+      '<ellipse cx="45" cy="33" rx="10" ry="7" stroke-width="0" fill="url(#soft)"/>' +
+      '<path d="M35 41 L30.5 50.5" fill="none" stroke-width="1.6" stroke-opacity=".5" stroke-linecap="round"/>' +
+      '<path d="M58 42 C63.5 42 65 51 58.6 54 C60 50 60 46 58 42Z" stroke-width="0" fill-opacity=".9"/>';
+    let lines = '<path d="M37 40.8 L41 40.4"/><path d="M33.6 56.2 L36 56.4"/><path d="M41 69 C46 70 52 68 56 63"/>';
     if (kind === 'lincoln') {
-      // あごひげと豊かな髪
-      shape += 'M60 48 C62 62 56 75 43 75 C36 75 32.5 70 32.4 63 L34 61 C37 67 44 67 50 62 Z' +
-        'M50 20 C60 16 72 20 76 32 C78 40 76 48 72 52 L68 40 Z';
-      lines = 'M58 41 C62 41 63.5 48 59 50" /><path d="M37 40.6 L41 40.2" /><path d="M44 66 C47 70 52 70 56 64" /><path d="M54 24 C62 23 70 28 72 36';
+      shape += lay('M60 46 C63 62 57 76 43 76 C36 76 32 71 32.2 63.5 L34.2 62 C37 68 44 68 50 62 C54 58 56 52 56 46Z', 0.95) +
+        lay('M47 21 C58 15 72 19 76 31 C79 40 76 49 71 54 C69 46 66 40 60 35 C56 31 51 28 47 21Z', 1);
+      lines += '<path d="M40 70 C45 73 52 72 57 66"/><path d="M60 26 C66 29 70 35 71 42"/><path d="M53 24 C60 25 66 30 68 37"/>';
     } else if (kind === 'washington') {
-      // 後ろで結んだ髪（リボン）と巻き毛
-      shape += 'M66 64 C74 64 78 72 74 82 C71 77 68 74 64 72 Z M70 66 C76 60 80 64 77 68 C80 70 77 75 72 71 Z';
-      lines = 'M58 42 C63 42 64.5 51 58.6 53.5" /><path d="M37 40.6 L41 40.2" /><path d="M60 34 C64 32 68 35 67 39" /><path d="M61 40 C65 38 69 41 68 45';
+      shape += lay('M50 21 C61 19 72 25 74 37 C75 46 73 55 69 62 C66 56 64 50 60 44 C56 38 52 33 50 21Z', 0.9) +
+        lay('M66 62 C74 63 79 71 75 82 C72 77 68 74 64 72Z', 1) +
+        lay('M70 65 C76 59 81 63 78 68 C81 70 78 76 72 71Z', 0.9) +
+        '<circle cx="64" cy="44" r="3.4" stroke-width="0"/><circle cx="64" cy="51" r="3.2" stroke-width="0"/>';
+      lines += '<path d="M56 28 C62 27 68 31 70 38"/><path d="M58 33 C63 33 67 36 68 42"/>';
     } else if (kind === 'jefferson') {
-      shape += 'M67 62 C73 63 75 70 72 77 C70 73 67 71 64 70 Z M41 84.5 L46 92 L52 84.5 Z';
-      lines = 'M58 42 C63 42 64.5 51 58.6 53.5" /><path d="M37 40.6 L41 40.2" /><path d="M48 24 C56 22 64 26 68 34';
+      shape += lay('M48 21 C60 18 71 24 73 36 C74 44 72 52 68 58 C66 50 62 44 58 39 C54 34 50 30 48 21Z', 0.9) +
+        lay('M67 61 C73 62 76 70 72 78 C70 73 67 71 64 70Z', 1) + lay('M40 84.5 L46 93 L53 84.5Z', 0.9);
+      lines += '<path d="M55 26 C62 27 67 32 69 39"/>';
     } else if (kind === 'roosevelt') {
-      lines = 'M58 42 C63 42 64.5 51 58.6 53.5" /><path d="M37 40.6 L41 40.2" /><path d="M58 26 C64 30 68 36 69 44';
+      shape += lay('M54 22 C64 23 71 30 72 40 C73 47 71 53 68 58 C66 50 63 43 60 37 C58 31 56 27 54 22Z', 0.95);
+      lines += '<path d="M60 28 C65 31 68 36 69 43"/>';
     }
-    return { shape: '<path d="' + shape + '" stroke-width="0"/>', lines: '<path d="' + lines + '" stroke-width=".7"/>' };
+    return { shape, lines: lines.replace(/<path /g, '<path stroke-width=".55" ') };
+  }
+
+  // 肖像レリーフ: 不透明な下地 + 光源フィルター（反転などの変形はフィルターの内側でかける）
+  function cameo(tf, p, m) {
+    const c = METAL[m];
+    return '<g transform="' + tf + '"><path d="' + HEAD + BUST + '" fill="' + c[1] + '"/></g>' +
+      emboss('<g transform="' + tf + '">' + p.shape + '</g>', m) +
+      '<g transform="' + tf + '">' + engrave(p.lines, m) + '</g>';
   }
 
   // ---- 円 ----
@@ -218,27 +234,27 @@
       const t = top('IN GOD WE TRUST', 6.8, US, 1, 43);
       const p = portrait('lincoln');
       return { defs: t.def, body: emboss(t.use + txt(17, 67, 'LIBERTY', 5, US, 'letter-spacing=".3"') + txt(79, 72, '2025', 6.4, US), m) +
-        '<g transform="translate(100 0) scale(-1 1) translate(3 2) scale(.94)">' + emboss(p.shape, m, 'url(#pg)') + engrave(p.lines, m) + '</g>' };
+        cameo('translate(100 0) scale(-1 1) translate(3 2) scale(.94)', p, m) };
     } },
     // 5¢ ジェファーソン（左向き）
     5: { metal: 'silver', art(m) {
       const l = arc('IN GOD WE TRUST', 42, 115, 235, true, 6, US, .8), r = arc('LIBERTY ★ 2025', 42, 300, 395, true, 6, US, .8);
       const p = portrait('jefferson');
-      return { defs: l.def + r.def, body: emboss(l.use + r.use, m) + '<g transform="translate(4 2) scale(.92)">' + emboss(p.shape, m, 'url(#pg)') + engrave(p.lines, m) + '</g>' };
+      return { defs: l.def + r.def, body: emboss(l.use + r.use, m) + cameo('translate(4 2) scale(.92)', p, m) };
     } },
     // 10¢ ルーズベルト（左向き）
     10: { metal: 'silver', reeded: true, art(m) {
       const l = arc('LIBERTY', 42, 140, 250, true, 8, US, 1.5);
       const p = portrait('roosevelt');
       return { defs: l.def, body: emboss(l.use + txt(25, 69, 'IN GOD', 4.4, US) + txt(25, 74, 'WE TRUST', 4.4, US) + txt(70, 84, '2025', 6, US), m) +
-        '<g transform="translate(6 0) scale(.92)">' + emboss(p.shape, m, 'url(#pg)') + engrave(p.lines, m) + '</g>' };
+        cameo('translate(6 0) scale(.92)', p, m) };
     } },
     // 25¢ ワシントン（左向き）
     25: { metal: 'silver', reeded: true, art(m) {
       const t = top('LIBERTY', 9, US, 3, 43), b = bottom('2025', 7, US, 2, 43);
       const p = portrait('washington');
       return { defs: t.def + b.def, body: emboss(t.use + b.use + txt(21, 71, 'IN GOD', 4.4, US) + txt(21, 76, 'WE TRUST', 4.4, US), m) +
-        '<g transform="translate(5 3) scale(.88)">' + emboss(p.shape, m, 'url(#pg)') + engrave(p.lines, m) + '</g>' };
+        cameo('translate(5 3) scale(.88)', p, m) };
     } },
   };
 
@@ -253,6 +269,19 @@
       '<filter id="n" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="' + (spec.matte ? 1.9 : 1.3) + '" numOctaves="2" seed="7"/>' +
       '<feColorMatrix values="1 0 0 0 0  1 0 0 0 0  1 0 0 0 0  0 0 0 0 ' + (spec.matte ? 0.22 : 0.12) + '"/><feComposite in2="SourceGraphic" operator="in"/></filter>';
     defs += '<linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c[0] + '"/><stop offset=".6" stop-color="' + c[1] + '"/><stop offset="1" stop-color="' + c[2] + '"/></linearGradient>';
+    defs +=
+      '<filter id="emb" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">' +
+      '<feGaussianBlur in="SourceAlpha" stdDeviation=".6" result="b"/>' +
+      '<feDiffuseLighting in="b" surfaceScale="2.6" diffuseConstant="1.3" lighting-color="#fff" result="d"><feDistantLight azimuth="225" elevation="50"/></feDiffuseLighting>' +
+      '<feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1" result="lit"/>' +
+      '<feSpecularLighting in="b" surfaceScale="2.6" specularConstant=".6" specularExponent="34" lighting-color="#fff" result="s"><feDistantLight azimuth="225" elevation="50"/></feSpecularLighting>' +
+      '<feComposite in="s" in2="SourceAlpha" operator="in" result="s2"/>' +
+      '<feComposite in="lit" in2="s2" operator="arithmetic" k2="1" k3="1" result="o"/>' +
+      '<feComposite in="o" in2="SourceAlpha" operator="in" result="relief"/>' +
+      '<feOffset in="SourceAlpha" dx=".5" dy=".7" result="off"/><feGaussianBlur in="off" stdDeviation=".45" result="ob"/>' +
+      '<feFlood flood-color="#000" flood-opacity=".3"/><feComposite in2="ob" operator="in" result="sh"/>' +
+      '<feMerge><feMergeNode in="sh"/><feMergeNode in="relief"/></feMerge></filter>';
+    defs += '<radialGradient id="soft"><stop offset="0" stop-color="' + c[1] + '" stop-opacity=".45"/><stop offset="1" stop-color="' + c[1] + '" stop-opacity="0"/></radialGradient>';
     if (spec.bicolor) defs += grad('g2', 'whiteClad');
     if (spec.patina) defs += '<radialGradient id="pt" cx="70%" cy="75%" r="60%"><stop offset="0" stop-color="#4a2410" stop-opacity=".35"/><stop offset="1" stop-color="#4a2410" stop-opacity="0"/></radialGradient>';
     let mask = '';
@@ -269,8 +298,7 @@
       body += '<g fill="' + c[3] + '" opacity=".5">' + r + '</g>';
     }
     // 縁（盛り上がったリム）
-    body += '<circle cx="50" cy="50" r="45.2" fill="none" stroke="' + c[3] + '" stroke-opacity=".55" stroke-width="1"/>' +
-      '<circle cx="50" cy="50" r="44.6" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width=".6"/>';
+    body += '<g filter="url(#emb)"><circle cx="50" cy="50" r="46.4" fill="none" stroke="' + c[1] + '" stroke-width="2.6"/></g>';
     if (spec.bicolor) {
       // 外周: ニッケル黄銅（金色） / 内側: 白銅・銅・白銅の 3 層（境目に銅色の線）
       body += '<circle cx="50" cy="50" r="33.5" fill="' + METAL.copper[1] + '"/>' +
@@ -278,8 +306,7 @@
         '<circle cx="50" cy="50" r="32.8" fill="none" stroke="' + METAL.whiteClad[3] + '" stroke-opacity=".5" stroke-width=".5"/>';
     }
     if (spec.hole) {
-      body += '<circle cx="50" cy="50" r="' + (spec.hole + 1.8) + '" fill="none" stroke="' + c[3] + '" stroke-opacity=".6" stroke-width="1.8"/>' +
-        '<circle cx="50" cy="50" r="' + (spec.hole + 0.6) + '" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width=".8"/>';
+      body += '<g filter="url(#emb)"><circle cx="50" cy="50" r="' + (spec.hole + 1.4) + '" fill="none" stroke="' + c[1] + '" stroke-width="2.6"/></g>';
     }
     body += '<circle cx="50" cy="50" r="47.6" fill="#fff" filter="url(#n)"/>';
     if (spec.patina) body += '<circle cx="50" cy="50" r="47.6" fill="url(#pt)"/>';
