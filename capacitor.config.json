@@ -1,0 +1,8 @@
+{
+  "appId": "jp.techgym.change",
+  "appName": "お釣りピッタリ",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#f6f1e7"
+  }
+}

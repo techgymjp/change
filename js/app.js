@@ -9,6 +9,14 @@
   const I = window.OtsuriI18n;
   const t = I.t;
   const money = (v) => I.money(state.cur, v);
+  const A = window.Ads;
+  // Android アプリ(Capacitor)で動いているか。Web 版では Capacitor がないので何もしない
+  const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const plugin = (name) => (NATIVE && window.Capacitor.Plugins ? window.Capacitor.Plugins[name] : null);
+  const WEB_URL = 'https://techgymjp.github.io/change/'; // アプリからシェアするときの URL
+  const REDO_MAX = 5;      // リワード広告の「やり直し」は 1 ゲーム 5 回まで
+  const REDO_DELAY = 2500; // 失敗の結果を見届けてから案内を出す
+  const REDO_WAIT = 6;     // 案内は 6 秒で自動的に消して先へ進む
   const AUTO_MS = 6000; // 結果表示から自動で次の会計に進むまでの時間
   let autoTimer = null;
 
@@ -69,6 +77,7 @@
     $('hud').hidden = id !== 'screenGame';
     document.body.classList.toggle('playing', id === 'screenGame');
     window.scrollTo(0, 0);
+    if (typeof updateBanner === 'function') updateBanner();
   }
 
   function randomSeed() {
@@ -90,6 +99,8 @@
     state.history = [];
     state.elapsed = 0;
     state.roundStart = null;
+    state.redoUsed = 0;
+    state.paused = false;
     document.body.dataset.cur = code.toLowerCase();
     try {
       const url = new URL(location.href);
@@ -116,10 +127,11 @@
   let zTop = 1;
   let drag = null;
 
-  function gauss() {
+  function gauss(rnd) {
+    rnd = rnd || Math.random;
     let u = 0, v = 0;
-    while (!u) u = Math.random();
-    while (!v) v = Math.random();
+    while (!u) u = rnd();
+    while (!v) v = rnd();
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   }
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -152,10 +164,11 @@
   }
 
   // 山の中心付近に正規分布で散らす（重なりやすい）
-  function scatter(p, spread) {
-    p.x = clamp(0.5 + gauss() * (spread || 0.13), 0.1, 0.9);
-    p.y = clamp(0.58 + gauss() * (spread || 0.13) * 1.1, 0.12, 0.88);
-    p.rot = Math.floor(Math.random() * 360);
+  function scatter(p, spread, rnd) {
+    rnd = rnd || Math.random;
+    p.x = clamp(0.5 + gauss(rnd) * (spread || 0.13), 0.1, 0.9);
+    p.y = clamp(0.58 + gauss(rnd) * (spread || 0.13) * 1.1, 0.12, 0.88);
+    p.rot = Math.floor(rnd() * 360);
   }
 
   function startRound() {
@@ -164,19 +177,21 @@
     state.tray = C.zeros(state.cur);
     state.pieces = [];
     $('purse').innerHTML = '';
-    // 硬貨はシャッフルしてから順に積む（後から積んだものほど上）
+    // 硬貨はシャッフルしてから順に積む（後から積んだものほど上）。
+    // 並びは問題ごとの乱数の種から作る（やり直しで同じ山を再現するため）
+    const rnd = C.makeRng(state.code + ':' + state.seed + ':layout:' + state.index);
     const coins = [];
     state.wallet.forEach((n, i) => {
       // 表と裏はランダム
-      for (let k = 0; k < n; k++) coins.push({ id: ++pieceSeq, i, where: 'purse', face: Math.random() < 0.5 ? 'a' : 'b' });
+      for (let k = 0; k < n; k++) coins.push({ id: ++pieceSeq, i, where: 'purse', face: rnd() < 0.5 ? 'a' : 'b' });
     });
     for (let k = coins.length - 1; k > 0; k--) {
-      const j = Math.floor(Math.random() * (k + 1));
+      const j = Math.floor(rnd() * (k + 1));
       [coins[k], coins[j]] = [coins[j], coins[k]];
     }
     zTop = 1;
     coins.forEach((p) => {
-      scatter(p);
+      scatter(p, 0, rnd);
       p.z = zTop++;
       state.pieces.push(p);
     });
@@ -189,6 +204,7 @@
     void $('price').offsetWidth;
     $('price').classList.add('pop');
     $('purseOuter').classList.remove('shake');
+    state.roundAcc = 0; // ポーズ前までにこの会計でかかった秒数
     state.roundStart = performance.now();
     render();
   }
@@ -446,11 +462,13 @@
     state.score += gained;
     if (isPerfect) state.perfect++;
     // この会計にかかった時間（結果表示中は数えない）
-    const sec = state.roundStart ? (performance.now() - state.roundStart) / 1000 : 0;
+    const sec = (state.roundAcc || 0) + (state.roundStart ? (performance.now() - state.roundStart) / 1000 : 0);
+    state.roundAcc = 0;
     state.elapsed += sec;
     state.roundStart = null;
     updateClock();
     state.history.push({ price: r.price, before: res.coinsBefore, after: res.coinsAfter, best: best.coinsAfter, perfect: isPerfect, sec });
+    state.lastRound = { gained, isPerfect, sec };
 
     const red = $('mReduced');
     if (gained > 0) {
@@ -494,7 +512,69 @@
     if (isPerfect) S.fanfare(end + 0.1);
     else if (gained <= 0) S.thud(end + 0.1);
 
-    startAuto(AUTO_MS + Math.max(0, end - 0.5) * 1000);
+    // パーフェクトでなければ、リワード広告で「この会計をやり直す」を案内する（アプリのみ）
+    if (!isPerfect && A.canReward && state.redoUsed < REDO_MAX) offerRedo(Math.max(REDO_DELAY, end * 1000));
+    else startAuto(AUTO_MS + Math.max(0, end - 0.5) * 1000);
+  }
+
+  // ---------- リワード広告のチート: パーフェクトにできなかった会計をやり直す ----------
+  const redo = { active: false, busy: false, timer: null, tick: null, left: 0 };
+  function offerRedo(delay) {
+    closeRedo();
+    $('nextBar').style.width = '0%';
+    $('autoNote').textContent = '';
+    redo.timer = setTimeout(showRedo, delay);
+  }
+  function showRedo() {
+    if (state.paused) { redo.timer = setTimeout(showRedo, 500); return; }
+    Object.assign(redo, { active: true, busy: false, left: REDO_WAIT });
+    $('redoWatch').disabled = false;
+    $('redoWatch').textContent = t('redoWatch');
+    $('redoNote').textContent = t('redoNote', { n: REDO_MAX - state.redoUsed, max: REDO_MAX });
+    $('redoSkip').textContent = t('redoSkip', { s: redo.left });
+    $('redo').hidden = false;
+    redo.tick = setInterval(() => {
+      if (redo.busy || state.paused) return;
+      redo.left--;
+      $('redoSkip').textContent = t('redoSkip', { s: Math.max(0, redo.left) });
+      if (redo.left <= 0) skipRedo();
+    }, 1000);
+  }
+  function closeRedo() {
+    clearTimeout(redo.timer);
+    clearInterval(redo.tick);
+    redo.timer = redo.tick = null;
+    redo.active = false;
+    $('redo').hidden = true;
+  }
+  // 案内を閉じて、いつもどおり次の会計へ進む
+  function skipRedo() {
+    closeRedo();
+    if (!$('modal').hidden) startAuto(3000);
+  }
+  async function watchRedo() {
+    if (!redo.active || redo.busy) return;
+    redo.busy = true;
+    $('redoWatch').disabled = true;
+    $('redoWatch').textContent = t('redoLoading');
+    const result = await A.showRewarded();
+    if (!redo.active) return;
+    if (result === 'unavailable') {
+      $('redoNote').textContent = t('redoFail');
+      setTimeout(skipRedo, 2000);
+      return;
+    }
+    if (result !== 'rewarded') return skipRedo();
+    // この会計の成績（減らした枚数・時間）を取り消して、同じ値段・同じ山でもう一度
+    closeRedo();
+    const last = state.lastRound;
+    state.score -= last.gained;
+    if (last.isPerfect) state.perfect--;
+    state.elapsed -= last.sec;
+    state.history.pop();
+    state.redoUsed++;
+    $('modal').hidden = true;
+    startRound();
   }
 
   function startAuto(ms) {
@@ -521,6 +601,7 @@
 
   function next() {
     stopAuto();
+    closeRedo();
     $('modal').hidden = true;
     state.index++;
     if (state.index >= C.ROUNDS) return finish();
@@ -534,7 +615,7 @@
     return m + ':' + String(s).padStart(2, '0');
   }
   function currentElapsed() {
-    return state.elapsed + (state.roundStart ? (performance.now() - state.roundStart) / 1000 : 0);
+    return state.elapsed + (state.roundAcc || 0) + (state.roundStart ? (performance.now() - state.roundStart) / 1000 : 0);
   }
   function updateClock() {
     $('hudTime').textContent = fmtTime(currentElapsed());
@@ -568,7 +649,7 @@
     $('bdPerfectSub').textContent = t('bdPerfectSub', { n: state.perfect, total: C.ROUNDS });
     $('bdSpeed').textContent = ev.speed;
     $('bdSpeedSub').textContent = t('bdSpeedSub', { time: fmtTime(state.elapsed), avg: ev.avg.toFixed(1) });
-    $('endSub').textContent = t('endSub', { n: state.score });
+    $('endSub').textContent = t('endSub', { n: state.score }) + (state.redoUsed ? t('redoUsed', { n: state.redoUsed }) : '');
     const tot = ev.total;
     const r = tot >= 900 ? 'S' : tot >= 750 ? 'A' : tot >= 600 ? 'B' : tot >= 400 ? 'C' : 'D';
     const rank = [r, t('rank' + r)];
@@ -602,7 +683,7 @@
 
   // ---------- シェア ----------
   function shareUrl() {
-    const u = new URL(location.href);
+    const u = new URL(NATIVE ? WEB_URL : location.href);
     u.search = '';
     u.hash = '';
     u.searchParams.set('cur', state.code);
@@ -612,26 +693,104 @@
   }
   function shareText() {
     const marks = state.history.map((h) => (h.perfect ? '🟩' : h.after < h.before ? '🟨' : '⬜')).join('');
-    return t('shareText', { cur: t('cur' + state.code), total: state.eval.total, n: state.score, p: state.perfect, rounds: C.ROUNDS, time: fmtTime(state.elapsed), code: state.seed }) +
+    return t('shareText', { cur: t('cur' + state.code), total: state.eval.total, n: state.score, p: state.perfect, rounds: C.ROUNDS, time: fmtTime(state.elapsed), code: state.seed, redo: state.redoUsed ? t('shareRedo', { n: state.redoUsed }) : '' }) +
       '\n' + marks.slice(0, 10) + '\n' + marks.slice(10);
   }
   function updateShareLinks() {
     const text = shareText(), url = shareUrl();
     $('btnShareX').href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(url);
     $('btnShareLine').href = 'https://line.me/R/msg/text/?' + encodeURIComponent(text + '\n' + url);
-    $('btnShareNative').hidden = !navigator.share;
+    $('btnShareNative').hidden = !(plugin('Share') || navigator.share);
   }
 
   // ---------- イベント ----------
+  // ---------- 全画面広告(アプリのみ) ----------
+  // 「プレイを始める」「トップに戻る」「ポーズからの再開」「結果画面からもう一度」のたびに出す
+  let adBusy = false;
+  async function withInterstitial(next) {
+    if (adBusy) return;
+    if (A.available) {
+      adBusy = true;
+      $('pauseMenu').hidden = true;
+      await A.showInterstitial(3000);
+      adBusy = false;
+    }
+    next();
+  }
+  function goHome() {
+    withInterstitial(() => {
+      closeRedo();
+      stopAuto();
+      $('modal').hidden = true;
+      state.paused = false;
+      renderRecords();
+      show('screenStart');
+    });
+  }
   document.querySelectorAll('[data-cur]').forEach((b) =>
-    b.addEventListener('click', () => { S.unlock(); BGM.start(); startGame(b.dataset.cur, $('seedInput').value.trim().toUpperCase()); })
+    b.addEventListener('click', () => {
+      S.unlock();
+      BGM.start();
+      const seed = $('seedInput').value.trim().toUpperCase();
+      withInterstitial(() => startGame(b.dataset.cur, seed));
+    })
   );
+
+  // ---------- ポーズ（戻るボタン・別アプリへの切り替え） ----------
+  function inGame() { return !$('screenGame').hidden; }
+  function pauseGame() {
+    if (!inGame() || state.paused) return;
+    state.paused = true;
+    if (state.roundStart) { state.roundAcc = (state.roundAcc || 0) + (performance.now() - state.roundStart) / 1000; state.roundStart = null; }
+    if (autoTimer) { stopAuto(); state.resumeAuto = true; }
+    updateClock();
+    $('pauseMenu').hidden = false;
+    updateBanner();
+  }
+  function resumeGame() {
+    withInterstitial(() => {
+      state.paused = false;
+      $('pauseMenu').hidden = true;
+      if ($('modal').hidden) state.roundStart = performance.now();
+      else if (state.resumeAuto && !redo.active && !redo.timer) startAuto(3000);
+      state.resumeAuto = false;
+      updateBanner();
+    });
+  }
+  $('pauseResume').addEventListener('click', resumeGame);
+  $('pauseHome').addEventListener('click', goHome);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (NATIVE) pauseGame();
+      try { const c = S.context(); if (c) c.suspend(); } catch (e) { /* ignore */ }
+    } else if (!A.showing) {
+      try { const c = S.context(); if (c) c.resume(); } catch (e) { /* ignore */ }
+    }
+  });
+  // Android の戻るボタン: プレイ中はポーズ（ポーズ中なら再開）、遊び方はトップへ、トップ・結果画面ではアプリを閉じる
+  if (plugin('App')) {
+    plugin('App').addListener('backButton', () => {
+      if (adBusy) return;
+      if (inGame()) { if (state.paused) resumeGame(); else pauseGame(); }
+      else if (!$('screenHowto').hidden) goHome();
+      else plugin('App').exitApp();
+    });
+  }
+
+  // ---------- バナー広告: トップ・遊び方・ポーズ・結果画面だけ ----------
+  function updateBanner() {
+    const want = !inGame() || state.paused;
+    A.setBanner(want);
+    document.body.classList.toggle('has-banner', A.available && want);
+  }
+  $('redoWatch').addEventListener('click', watchRedo);
+  $('redoSkip').addEventListener('click', skipRedo);
   $('btnPay').addEventListener('click', pay);
   $('btnReturn').addEventListener('click', () => returnPieces(state.pieces.filter((p) => p.where === 'machine')));
   $('btnShake').addEventListener('click', shakePurse);
   window.addEventListener('resize', () => { if (state.cur && !$('screenGame').hidden) layoutPurse(); });
   $('btnNext').addEventListener('click', (e) => { e.stopPropagation(); next(); });
-  document.querySelector('.modal-box').addEventListener('pointerdown', (e) => { if (!e.target.closest('#btnNext')) stopAuto(); });
+  document.querySelector('#modal .modal-box').addEventListener('pointerdown', (e) => { if (!e.target.closest('#btnNext') && !e.target.closest('#redo')) stopAuto(); });
   document.addEventListener('keydown', (e) => {
     if ($('modal').hidden) return;
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); next(); }
@@ -645,7 +804,7 @@
   bgmBtn.addEventListener('click', () => { S.unlock(); BGM.setOn(!BGM.isOn()); syncBgm(); });
   syncBgm();
   $('btnHowto').addEventListener('click', () => { show('screenHowto'); });
-  $('btnHowtoBack').addEventListener('click', () => show('screenStart'));
+  $('btnHowtoBack').addEventListener('click', goHome);
 
   // トップと遊び方の絵: 本物の硬貨画像で小銭の山を作る
   document.querySelectorAll('img[data-coin]').forEach((img) => {
@@ -666,8 +825,8 @@
     ['JPY', 50, 24, 38, 27.3, 200], ['JPY', 1, 62, 34, 26, 10], ['JPY', 500, 50, 60, 34.5, -12], ['JPY', 10, 34, 74, 30.6, 60], ['JPY', 1, 76, 76, 26, 300],
   ]);
   decoPile($('howPile'), [['JPY', 10, 36, 56, 45.9, 30], ['JPY', 1, 62, 46, 39.0, 100], ['JPY', 100, 48, 40, 44.1, -20], ['JPY', 50, 66, 66, 41.0, 10]]);
-  $('btnRetry').addEventListener('click', () => startGame(state.code, state.seed));
-  $('btnHome').addEventListener('click', () => { renderRecords(); show('screenStart'); });
+  $('btnRetry').addEventListener('click', () => withInterstitial(() => startGame(state.code, state.seed)));
+  $('btnHome').addEventListener('click', goHome);
   $('btnShare').addEventListener('click', () => {
     const text = shareText() + '\n' + shareUrl();
     const done = () => { $('copyLabel').textContent = t('copied'); setTimeout(() => ($('copyLabel').textContent = t('copy')), 1500); };
@@ -675,8 +834,10 @@
     else prompt(t('copyPrompt'), text);
   });
   $('btnShareNative').addEventListener('click', () => {
-    if (!navigator.share) return;
-    navigator.share({ title: t('appTitle'), text: shareText(), url: shareUrl() }).catch(() => {});
+    // アプリでは Android の共有メニュー（@capacitor/share）、Web 版では端末の共有機能
+    const data = { title: t('appTitle'), text: shareText(), url: shareUrl() };
+    if (plugin('Share')) plugin('Share').share(Object.assign({ dialogTitle: t('share') }, data)).catch(() => {});
+    else if (navigator.share) navigator.share(data).catch(() => {});
   });
   // 言語切り替え
   const langBtn = $('btnLang');
@@ -694,8 +855,16 @@
     if (state.cur && !$('screenGame').hidden) { $('price').textContent = money(state.rounds[state.index].price); render(); }
     if (!$('screenEnd').hidden) finish();
   });
+  // トップ画面の下に、バージョン(アプリ版)・プライバシーポリシー・広告の設定(EU など)を出す
+  if (window.APP_VERSION && window.APP_VERSION !== 'dev') $('buildInfo').textContent = window.APP_VERSION;
+  A.initDone.then(() => { if (A.privacyOptionsRequired) $('adPrivacy').hidden = false; updateBanner(); });
+  $('adPrivacyLink').addEventListener('click', (e) => { e.preventDefault(); A.showPrivacyOptions(); });
+  const syncPrivacy = () => ($('privacyLink').href = t('privacyUrl'));
+  langBtn.addEventListener('click', syncPrivacy);
   I.apply();
   syncLang();
+  syncPrivacy();
+  updateBanner();
   $('inserted').dataset.empty = t('insertedEmpty');
 
   // URL の ?code= でチャレンジコードを受け取る

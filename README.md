@@ -18,6 +18,7 @@
 | --- | --- |
 | `index.html` | 画面 |
 | `css/style.css` | デザイン |
+| `js/ads.js` | AdMob 広告（Android アプリのときだけ動く） |
 | `js/i18n.js` | 日本語 / 英語の文言と切り替え |
 | `js/core.js` | 出題・お釣り計算・最適解探索（UI非依存。Node でも動作） |
 | `js/coins.js` | 硬貨の SVG 描画 |
@@ -25,4 +26,41 @@
 | `js/bgm.js` | BGM（Web Audio で演奏するオリジナル曲） |
 | `js/app.js` | 画面制御 |
 
-ビルド不要の静的サイトです。GitHub Pages では「Settings → Pages → Branch: `main` / `(root)`」で公開できます。
+Web 版はビルド不要の静的サイトです。GitHub Pages では「Settings → Pages → Branch: `main` / `(root)`」で公開できます。
+
+## Android アプリ
+
+[Capacitor](https://capacitorjs.com/) でゲームのファイルをアプリに同梱しています（オフラインで遊べます）。パッケージ名は `jp.techgym.change`。
+
+- 動作確認用 APK（デバッグ署名・テスト広告）: リリース画面 https://github.com/techgymjp/change/releases/tag/android-latest
+- APK を直接ダウンロード: https://github.com/techgymjp/change/releases/latest/download/change.apk
+- `main` に push すると GitHub Actions（`.github/workflows/android.yml`）が APK をビルドして、上のリリースに載せます。
+  GitHub Secrets にアップロード鍵（`ANDROID_KEYSTORE_BASE64` など 4 つ）があれば、Google Play 用の署名付き AAB（本番広告）も作り、実行結果の Artifacts に上げます。
+
+| ファイル | 内容 |
+| --- | --- |
+| `package.json` / `capacitor.config.json` | Capacitor 8 の設定 |
+| `scripts/build-web.js` | `index.html` `css` `js` を `www/` にコピーし、`js/ads-config.js`（広告のテスト / 本番）と `js/build-info.js`（バージョン）を生成 |
+| `js/ads.js` | AdMob 広告（アプリのときだけ動く） |
+| `android/` | Android プロジェクト（縦画面固定・全画面・画面を消さない） |
+| `assets/` | アイコンと起動画面の元画像（`npx @capacitor/assets generate --android` で生成） |
+
+広告を出す場面:
+
+| 種類 | 出す場面 |
+| --- | --- |
+| バナー | トップ・遊び方・ポーズ・結果画面の下中央（プレイ中は出さない） |
+| 全画面広告 | プレイを始めるとき、トップに戻るとき、ポーズから再開するとき、結果画面から「同じ問題で再挑戦」するとき |
+| リワード広告 | パーフェクトにできなかった会計の結果画面で「広告を見てこの会計をやり直す」（1 ゲーム 5 回まで。同じ値段・同じ硬貨の山でやり直し、使った回数は結果画面とシェア文に出る） |
+
+ローカルでの作業:
+
+```bash
+npm ci
+npm run android:sync   # www/ を作って Android プロジェクトにコピー
+npm run android:open   # Android Studio で開く
+```
+
+## ライセンス
+
+著作権はテックジム株式会社に帰属します（All rights reserved）。許可なく複製・改変・再配布すること、Web サイトやアプリとして公開・販売すること、名前・アイコン・画像を使うことを禁止します。テックジムの受講生が学習目的で複製・改変することは許可しますが、アプリストアでの公開・広告の掲載・販売などの商用利用はできません。詳しくは `LICENSE` を見てください。
