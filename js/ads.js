@@ -23,7 +23,7 @@ window.Ads = (() => {
       },
       // 本番の広告ユニット(AdMob の Android アプリ「お釣りピッタリ」)。届くまでは空(本番ビルドでは出さない)
       production: {
-        interstitial: '',
+        interstitial: 'ca-app-pub-6411535997477460/8930801820',
         rewarded: '',
         banner: 'ca-app-pub-6411535997477460/3361238381',
       },
