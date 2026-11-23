@@ -12,7 +12,7 @@ const root = path.join(__dirname, '..');
 const out = path.join(root, 'www');
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out);
-for (const item of ['index.html', 'css', 'js']) {
+for (const item of ['index.html', 'css', 'js', 'favicon.png', 'favicon.ico', 'apple-touch-icon.png']) {
   const src = path.join(root, item);
   if (fs.existsSync(src)) fs.cpSync(src, path.join(out, item), { recursive: true });
 }

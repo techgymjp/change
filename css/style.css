@@ -522,15 +522,33 @@ html, body { overscroll-behavior: none; }
 body.playing { height: 100vh; height: 100dvh; overflow: hidden; touch-action: none; }
 body.playing .foot { display: none; }
 body.playing main { padding-bottom: 0; }
-body.playing .purse { width: min(88%, 320px, calc((100vh - 430px) / 1.06)); width: min(88%, 320px, calc((100dvh - 430px) / 1.06)); }
 body.playing .purse-card .row-head h2 { font-size: .95rem; }
 @media (max-height: 700px) {
   body.playing .purse-foot .hint { display: none; }
   body.playing .purse-foot { justify-content: flex-end; margin-top: 4px; }
-  body.playing .purse { width: min(88%, 320px, calc((100vh - 395px) / 1.06)); width: min(88%, 320px, calc((100dvh - 395px) / 1.06)); }
 }
 
 .foot-left { flex: 1; min-width: 0; }
 .foot-left .hint { display: block; }
 .purse-foot { align-items: flex-start; }
 .purse-foot .btn { flex: none; }
+
+/* プレイ中の小銭入れの大きさは JS（fitPurse）で画面に合わせる */
+body.playing .purse { aspect-ratio: auto; margin-top: 16px; }
+/* 背の低い画面: 釣銭機と見出しを詰めて、小銭入れに高さを回す */
+@media (max-height: 700px) {
+  body.playing .top { padding-top: 4px; padding-bottom: 4px; }
+  body.playing .hud b { font-size: 1.15rem; }
+  body.playing .machine { padding: 7px; gap: 6px 8px; }
+  body.playing .lcd { padding: 4px 8px; }
+  body.playing .lcd-row #price { font-size: 1.45rem; }
+  body.playing .lcd-row b { font-size: .95rem; }
+  body.playing .funnel { width: 100px; height: 58px; }
+  body.playing .mbtn { padding: 6px 4px; }
+  body.playing .game-grid { gap: 6px; }
+  body.playing .purse-card { padding: 6px 10px 8px; }
+  body.playing .purse-card .row-head { margin-bottom: 0; }
+  body.playing .purse { margin-top: 14px; padding: 24px 12px 14px; }
+  body.playing .memo { font-size: .78rem; margin-top: 4px; }
+  body.playing .chip img { width: 16px; height: 16px; }
+}

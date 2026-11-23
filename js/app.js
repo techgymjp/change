@@ -139,7 +139,8 @@
   function pxPerMm() {
     const box = $('purse');
     const w = Math.min(box.clientWidth || 340, (box.clientHeight || 280) * 1.25);
-    return clamp((w / 260) * 2.55, 2.6, 3.4);
+    // 小さい小銭入れでは硬貨も小さくする（下限を低めにして、積み重なりすぎないように）
+    return clamp((w / 260) * 2.55, 1.9, 3.4);
   }
   function diameter(p) {
     return DIAMETER_MM[state.code][state.cur.denoms[p.i].v] * pxPerMm();
@@ -207,6 +208,40 @@
     state.roundAcc = 0; // ポーズ前までにこの会計でかかった秒数
     state.roundStart = performance.now();
     render();
+    // 中身メモまで描いてから、残りの高さに小銭入れを合わせる
+    fitPurse();
+    layoutPurse();
+  }
+
+  /**
+   * 小銭入れの大きさを、画面に残っている高さにぴったり合わせる（プレイ画面がスクロールしないように）。
+   * 背の低い画面では横長にして、幅を確保する
+   */
+  function fitPurse() {
+    if (!state.cur || $('screenGame').hidden) return;
+    const outer = $('purseOuter');
+    const card = outer.parentElement;
+    outer.style.height = '0px';
+    outer.style.width = '0px';
+    const cs = getComputedStyle(card);
+    const maxW = Math.min(card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), 340);
+    // 小銭入れを 0 にしたときの、プレイ画面の下端（画面は固定なので scrollHeight ではなく実際の位置で測る）
+    const bottom = card.getBoundingClientRect().bottom + window.scrollY;
+    // 高さ 0 でも内側の余白（padding）ぶんは場所を取っているので、その分を足し戻す
+    const ocs = getComputedStyle(outer);
+    const padV = parseFloat(ocs.paddingTop) + parseFloat(ocs.paddingBottom);
+    const avail = Math.max(150, window.innerHeight - bottom - 16 + padV); // 16 = カードの下の余白
+    const w = Math.min(maxW, avail / 0.72); // 背が低いときは横長（縦:横 = 0.72）まで広げる
+    const h = Math.min(avail, w * 1.06);
+    outer.style.width = Math.round(w) + 'px';
+    outer.style.height = Math.round(h) + 'px';
+    // 文字の折り返しなどで、まだはみ出していたらその分だけ縮める
+    const over = card.getBoundingClientRect().bottom + window.scrollY + 16 - window.innerHeight;
+    if (over > 0) {
+      const h2 = Math.max(140, h - over);
+      outer.style.height = Math.round(h2) + 'px';
+      outer.style.width = Math.round(Math.min(w, h2 / 0.72)) + 'px';
+    }
   }
 
   function layoutPurse() {
@@ -426,7 +461,10 @@
     const coins = state.pieces.filter((p) => p.where === 'purse' && isCoin(p));
     const order = coins.map((p) => ({ p, k: Math.random() })).sort((a, b) => a.k - b.k);
     order.forEach(({ p }) => {
-      scatter(p);
+      // 振ったら小銭入れ全体に散らばる（真ん中に集めない）。下に埋もれた硬貨も見つけやすくなる
+      p.x = 0.1 + Math.random() * 0.8;
+      p.y = 0.12 + Math.random() * 0.76;
+      p.rot = Math.floor(Math.random() * 360);
       p.z = ++zTop;
       // 振ると裏返る硬貨もある
       if (Math.random() < 0.5) setFace(p, p.face === 'a' ? 'b' : 'a');
@@ -808,7 +846,7 @@
   $('btnPay').addEventListener('click', () => pay());
   $('btnReturn').addEventListener('click', () => returnPieces(state.pieces.filter((p) => p.where === 'machine')));
   $('btnShake').addEventListener('click', shakePurse);
-  window.addEventListener('resize', () => { if (state.cur && !$('screenGame').hidden) layoutPurse(); });
+  window.addEventListener('resize', () => { if (state.cur && !$('screenGame').hidden) { fitPurse(); layoutPurse(); } });
   $('btnNext').addEventListener('click', (e) => { e.stopPropagation(); next(); });
   document.querySelector('#modal .modal-box').addEventListener('pointerdown', (e) => { if (!e.target.closest('#btnNext') && !e.target.closest('#redo')) stopAuto(); });
   document.addEventListener('keydown', (e) => {
@@ -872,7 +910,7 @@
     } catch (e) { /* ignore */ }
     renderRecords();
     $('inserted').dataset.empty = t('insertedEmpty');
-    if (state.cur && !$('screenGame').hidden) { $('price').textContent = money(state.rounds[state.index].price); render(); }
+    if (state.cur && !$('screenGame').hidden) { $('price').textContent = money(state.rounds[state.index].price); fitPurse(); render(); }
     if (!$('screenEnd').hidden) finish();
   });
   // トップ画面の下に、バージョン(アプリ版)・プライバシーポリシー・広告の設定(EU など)を出す
